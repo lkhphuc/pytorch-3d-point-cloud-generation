@@ -1,6 +1,5 @@
+"""Pytorch Dataset and Dataloader for 3D PCG"""
 # %%
-import os
-
 import scipy.io
 import numpy as np
 import torch
@@ -49,7 +48,6 @@ class PointCloud2dDataset(Dataset):
             trans = raw_data["trans"]
             mask = depth != 0
             depth[~mask] = self.cfg.renderDepth
-
             return {"image_in": image_in, "depth": depth, "mask": mask, "trans": trans}
 
         if self.loadFixedOut:
@@ -58,31 +56,45 @@ class PointCloud2dDataset(Dataset):
             depth = raw_data["Z"]
             mask = depth != 0
             depth[~mask] = self.cfg.renderDepth
-
-            mask = np.transpose(mask, [1, 2, 0])
-            depth = np.transpose(depth, [1, 2, 0])
-
-            return {"image_in": image_in, "depth_fixedOut": depth, "mask_fixedOut": mask}
+            return {"image_in": image_in, "depth": depth, "mask": mask}
 
     def collate_fn(self, batch):
-        """Convert a list of models to a batch of view
+        """Convert a list of models with many views to
+        a batch of random views of different models
         Args:
             batch: (list) [chunkSize, ]
                 each element of list batch has shape
                 [viewN, height, width, channels]
+        Return: {}
+            inputImage: [batchSize, height, width, channels]
+            targetTrans: [batchSize, novelN, 4]
+            depth_fixedOut: [batchSize, novelN, height, width, 1]
+            mask_fixedOut: [batchSize, novelN, height, width, 1]
         """
         # Shape: [chunkSize, viewN, height, width, channels] 
         batch_n = {key: np.array([d[key] for d in batch]) for key in batch[0]}
+        # Shape: [batchSize,]
         modelIdx = np.random.permutation(cfg.chunkSize)[:cfg.batchSize]
+        # Shape: [batchSize, novelN]
+        modelIdxTile = np.tile(modelIdx, [cfg.novelN, 1]).T
+        # 24 is the number of rendered images for a single CAD models
+        # Shape: [batchSize,]
         angleIdx = np.random.randint(24, size=[cfg.batchSize])
+        # Shape: [batchSize, novelN]
+        sampleIdx = np.random.randint(
+            cfg.sampleN, size=[cfg.batchSize, cfg.novelN])
         return {
-            inputImage: batch_n["image_in"][modelIdx, angleIdx],
-            depthGT: batch_n["depth_fixedOut"][modelIdx],
-            maskGT: batch_n["mask_fixedOut"][modelIdx]
+            "inputImage": batch_n["image_in"][modelIdx, angleIdx],
+            "targetTrans": batch_n["trans"][modelIdxTile, sampleIdx],
+            "depthGT": np.expand_dims(
+                batch_n["depth"][modelIdxTile, sampleIdx], axis=-1),
+            "maskGT": np.expand_dims(
+                batch_n["mask"][modelIdxTile, sampleIdx], axis=-1),
         }
 
     def collate_fn_fixed(self, batch):
-        """Convert a list of models to a batch of view
+        """Convert a list of models with many views to
+        a batch of some fixed views of different models
         Args:
             batch: (list) [chunkSize, ]
                 each element of list batch has shape
@@ -99,8 +111,10 @@ class PointCloud2dDataset(Dataset):
         angleIdx = np.random.randint(24, size=[cfg.batchSize])
         return {
             "inputImage": batch_n["image_in"][modelIdx, angleIdx],
-            "depthGT": batch_n["depth_fixedOut"][modelIdx],
-            "maskGT": batch_n["mask_fixedOut"][modelIdx]
+            "depthGT":
+            np.transpose(batch_n["depth"][modelIdx], axes=[0, 2, 3, 1]),
+            "maskGT":
+            np.transpose(batch_n["mask"][modelIdx], axes=[0, 2, 3, 1]),
         }
 
 # %%
@@ -108,7 +122,9 @@ class PointCloud2dDataset(Dataset):
 if __name__ == "__main__":
     import options
     cfg = options.get_arguments(training=True)
-    ds = PointCloud2dDataset(cfg)
-    dl = DataLoader(ds, batch_size=cfg.chunkSize, shuffle=False, collate_fn=ds.collate_fn_fixed)
+    ds_fixed = PointCloud2dDataset(cfg)
+    dl_fixed = DataLoader(ds_fixed, batch_size=cfg.chunkSize, shuffle=False, collate_fn=ds_fixed.collate_fn_fixed)
+    ds_novel = PointCloud2dDataset(cfg, loadNovel=True)
+    dl_novel = DataLoader(ds_novel, batch_size=cfg.chunkSize, shuffle=False, collate_fn=ds_novel.collate_fn)
 
 # %%
