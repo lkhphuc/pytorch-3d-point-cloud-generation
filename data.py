@@ -68,8 +68,8 @@ class PointCloud2dDataset(Dataset):
         Return: {}
             inputImage: [batchSize, height, width, channels]
             targetTrans: [batchSize, novelN, 4]
-            depth_fixedOut: [batchSize, novelN, height, width, 1]
-            mask_fixedOut: [batchSize, novelN, height, width, 1]
+            depthGT: [batchSize, novelN, height, width, 1]
+            maskGT: [batchSize, novelN, height, width, 1]
         """
         # Shape: [chunkSize, viewN, height, width, channels] 
         batch_n = {key: np.array([d[key] for d in batch]) for key in batch[0]}
@@ -104,7 +104,7 @@ class PointCloud2dDataset(Dataset):
             depth_fixedOut: [batchSize, height, width, 8]
             mask_fixedOut: [batchSize, height, width, 8]
         """
-        # Shape: [chunkSize, viewN, height, width, channels] 
+        # Shape: [chunkSize, viewN, height, width, channels]
         batch_n = {key: np.array([d[key] for d in batch]) for key in batch[0]}
         modelIdx = np.random.permutation(cfg.chunkSize)[:cfg.batchSize]
         # 24 is the number of rendered images for a single CAD models
