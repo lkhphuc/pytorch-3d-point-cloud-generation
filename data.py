@@ -121,10 +121,10 @@ class PointCloud2dDataset(Dataset):
 ### TEST
 if __name__ == "__main__":
     import options
-    cfg = options.get_arguments(training=True)
-    ds_fixed = PointCloud2dDataset(cfg)
-    dl_fixed = DataLoader(ds_fixed, batch_size=cfg.chunkSize, shuffle=False, collate_fn=ds_fixed.collate_fn_fixed)
-    ds_novel = PointCloud2dDataset(cfg, loadNovel=True)
-    dl_novel = DataLoader(ds_novel, batch_size=cfg.chunkSize, shuffle=False, collate_fn=ds_novel.collate_fn)
+    CFG = options.get_arguments()
+    ds_fixed = PointCloud2dDataset(CFG)
+    dl_fixed = DataLoader(ds_fixed, batch_size=CFG.chunkSize, shuffle=False, collate_fn=ds_fixed.collate_fn_fixed)
+    ds_novel = PointCloud2dDataset(CFG, loadNovel=True)
+    dl_novel = DataLoader(ds_novel, batch_size=CFG.chunkSize, shuffle=False, collate_fn=ds_novel.collate_fn)
 
 # %%
