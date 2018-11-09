@@ -81,23 +81,22 @@ class Decoder(nn.Module):
         return XYZ, maskLogit
 
 class Structure_Generator(nn.Module):
-    """Structure generator components in GCP"""
+    """Structure generator components in PCG"""
 
-    def __init__(self, encoder, decoder):
+    def __init__(self, encoder=None, decoder=None):
         super(Structure_Generator, self).__init__()
         self.encoder = encoder
         self.decoder = decoder
+
+        if not self.encoder:
+            self.encoder = Encoder()
+        if not self.decoder:
+            self.decoder = Decoder(outViewN=8)
 
     def forward(self, x):
         latent = self.encoder(x)
         XYZ, maskLogit = self.decoder(latent)
 
-
-def build_structure_generator(cfg):
-    encoder = Encoder()
-    decoder = Decoder(cfg.outViewN)
-    model = Structure_Generator(encoder, decoder)
-    return model
 
 # TESTING
 if __name__ == '__main__':
@@ -105,4 +104,4 @@ if __name__ == '__main__':
     CFG = get_arguments()
     encoder = Encoder()
     decoder = Decoder(outViewN=CFG.outViewN)
-    model = build_structure_generator(CFG)
+    model = Structure_Generator(CFG)
