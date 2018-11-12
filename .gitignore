@@ -1,3 +1,7 @@
+# Tensorboard
+runs/
+# Model output
+models/
 # Data symlinks
 data/
 !data/trans_fuse8.npy
