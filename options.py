@@ -1,10 +1,6 @@
 """Parsing arguments from the commandline"""
 import argparse
-
 import numpy as np
-
-import util
-
 
 def parse_arguments():
     """Parse input arguments"""
@@ -25,7 +21,7 @@ def parse_arguments():
         "--group", default="0",
         help="name for group")
     parser.add_argument(
-        "--model", default="test",
+        "--model", default="pcg",
         help="name for model instance")
     parser.add_argument(
         "--load", default=None,
