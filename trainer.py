@@ -118,7 +118,8 @@ class Trainer_stg1:
                 XGT.repeat([self.cfg.outViewN, 1, 1]),
                 YGT.repeat([self.cfg.outViewN, 1,1])], dim=0)
             # Shape: [1, 2V, H, W] (Expand to new dimension)
-            XYGT = XYGT[None, :]
+            XYGT = torch.cat(
+                [XYGT[None, :] for i in range(depthGT.size(0))], dim=0)
 
             with torch.set_grad_enabled(False):
                 XYZ, maskLogit = model(input_images)
