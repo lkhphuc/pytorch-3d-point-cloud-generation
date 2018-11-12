@@ -57,7 +57,7 @@ if __name__ == "__main__":
         logger.addHandler(
             logging.FileHandler(filename=f"logs/{EXPERIMENT}.log"))
 
-    writer = SummaryWriter(comment=EXPERIMENT)
+    writer = SummaryWriter(comment="_"+EXPERIMENT)
 
     print("create Dataloader")
     tfms = transforms.ToTensor()
