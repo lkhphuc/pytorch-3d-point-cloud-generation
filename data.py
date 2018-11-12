@@ -125,7 +125,6 @@ class PointCloud2dDataset(Dataset):
         images = batch_n["image_in"][modelIdx, angleIdx]
         depthGT = np.transpose(batch_n["depth"][modelIdx], axes=[0, 2, 3, 1])
         maskGT = np.transpose(batch_n["mask"][modelIdx], axes=[0, 2, 3, 1]).astype(np.int)
-        __import__('ipdb').set_trace()
         if self.transforms:
             images = torch.stack([
                 self.transforms(images[i])

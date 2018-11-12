@@ -96,6 +96,7 @@ class Structure_Generator(nn.Module):
     def forward(self, x):
         latent = self.encoder(x)
         XYZ, maskLogit = self.decoder(latent)
+        return XYZ, maskLogit
 
 
 # TESTING

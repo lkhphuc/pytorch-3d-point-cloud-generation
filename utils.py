@@ -1,10 +1,14 @@
+"""Utilities for 2D-3D conversion and building models"""
 import os
 
 import numpy as np
 import scipy.misc
 import torch
+from torch.utils.data import DataLoader
+from torch.optim.lr_scheduler import CosineAnnealingLR
 
-import termcolor
+import data
+from PCGModel import Structure_Generator
 
 
 # compute projection from source to target
@@ -33,31 +37,6 @@ def imsave(fname, array):
     scipy.misc.toimage(array, cmin=0.0, cmax=1.0).save(fname)
 
 
-# convert to colored strings
-def toRed(content):
-    return termcolor.colored(content, "red", attrs=["bold"])
-
-
-def toGreen(content):
-    return termcolor.colored(content, "green", attrs=["bold"])
-
-
-def toBlue(content):
-    return termcolor.colored(content, "blue", attrs=["bold"])
-
-
-def toCyan(content):
-    return termcolor.colored(content, "cyan", attrs=["bold"])
-
-
-def toYellow(content):
-    return termcolor.colored(content, "yellow", attrs=["bold"])
-
-
-def toMagenta(content):
-    return termcolor.colored(content, "magenta", attrs=["bold"])
-
-
 # make image summary from image batch
 def imageSummary(opt, tag, image, H, W):
     blockSize = opt.visBlockSize
@@ -71,18 +50,39 @@ def imageSummary(opt, tag, image, H, W):
     return summary
 
 
-# restore model
-def restoreModelFromIt(opt, sess, saver, it):
-    saver.restore(sess, "models_{0}/{1}_it{2}.ckpt".format(
-        opt.group, opt.model, it))
-
-
-# restore model
-def restoreModel(opt, sess, saver):
-    saver.restore(sess, "models_{0}/{1}.ckpt".format(opt.group, opt.load))
-
 
 # save model
 def saveModel(opt, sess, saver, it):
     saver.save(sess, "models_{0}/{1}_it{2}.ckpt".format(
         opt.group, opt.model, it))
+
+def build_structure_generator(cfg):
+    return Structure_Generator()
+
+def make_optimizer(cfg, model):
+    # params = []
+    # for key, value in model.named_parameters():
+    #     if not value.requires_grad:
+    #         continue
+    #     lr = cfg.lr
+    #     weight_decay = cfg.lrDecay
+    #     params += [{"params": [value], "lr": cfg.lr, "weight_decay": weight_decay}]
+    params = model.parameters()
+    optimizer = torch.optim.SGD(params, cfg.lr)
+    return optimizer
+
+def make_lr_scheduler(cfg, optimizer):
+    return CosineAnnealingLR(optimizer, 10)
+
+def make_data_fixed(cfg, tfms):
+    ds_tr = data.PointCloud2dDataset(cfg, loadNovel=False, loadFixedOut=True, loadTest=False, transforms=tfms)
+    dl_tr = DataLoader(
+        ds_tr, batch_size=cfg.chunkSize, shuffle=True,
+        collate_fn=ds_tr.collate_fn_fixed)
+
+    ds_test = data.PointCloud2dDataset(cfg, loadNovel=False, loadFixedOut=True, loadTest=True, transforms=tfms)
+    dl_test = DataLoader(
+        ds_test, batch_size=cfg.chunkSize, shuffle=False,
+        collate_fn=ds_test.collate_fn_fixed)
+    return [dl_tr, dl_test]
+

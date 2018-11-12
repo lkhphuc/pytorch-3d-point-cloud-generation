@@ -18,8 +18,8 @@ def parse_arguments():
         "--category", default="03001627",
         help="category ID number")
     parser.add_argument(
-        "--group", default="0",
-        help="name for group")
+        "--experiment", default="0",
+        help="name for experiment")
     parser.add_argument(
         "--model", default="pcg",
         help="name for model instance")
@@ -27,23 +27,20 @@ def parse_arguments():
         "--load", default=None,
         help="load trained model to fine-tune/evaluate")
     parser.add_argument(
-        "--fromIt", type=int, default=0,
+        "--startEpoch", type=int, default=0,
         help="resume training from iteration number")
     parser.add_argument(
-        "--toIt", type=int, default=100000,
-        help="run training to iteration number")
+        "--endEpoch", type=int, default=10000,
+        help="endEpoch")
     parser.add_argument(
         "--lambdaDepth", type=float, default=1.0,
         help="loss weight factor (depth)")
     parser.add_argument(
         "--batchSize", type=int, default=20,
-        help="batch size")
+        help="number of unique images from chunkSize CADs models")
     parser.add_argument(
         "--chunkSize", type=int, default=100,
-        help="data chunk size to load")
-    parser.add_argument(
-        "--itPerChunk", type=int, default=50,
-        help="training iterations per chunk")
+        help="Number of unique CAD models in each batch")
     parser.add_argument(
         "--lr", type=float, default=1e-4,
         help="base learning rate (AE)")
@@ -108,7 +105,7 @@ def get_arguments():
         dtype=np.float32)
     cfg.fuseTrans = np.load(f"{cfg.path}/trans_fuse{cfg.outViewN}.npy")
 
-    print(f"({cfg.group}) {cfg.model}")
+    print(f"{cfg.model}_{cfg.experiment}")
     print("------------------------------------------")
     print(f"batch size: {cfg.batchSize}, category: {cfg.category}")
     print(f"size: {cfg.inH}x{cfg.inW}(in), \
@@ -120,6 +117,5 @@ def get_arguments():
         print(f"learning rate: {cfg.lr:.2e} \
               (decay: {cfg.lrDecay}, step size: {cfg.lrStep})")
         print(f"depth loss weight: {cfg.lambdaDepth}")
-        print(f"training model ({cfg.group}) {cfg.model}..")
 
     return cfg
