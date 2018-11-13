@@ -36,11 +36,11 @@ def parse_arguments():
         "--lambdaDepth", type=float, default=1.0,
         help="loss weight factor (depth)")
     parser.add_argument(
-        "--batchSize", type=int, default=20,
-        help="number of unique images from chunkSize CADs models")
-    parser.add_argument(
         "--chunkSize", type=int, default=100,
         help="Number of unique CAD models in each batch")
+    parser.add_argument(
+        "--batchSize", type=int, default=20,
+        help="number of unique images from chunkSize CADs models")
     parser.add_argument(
         "--lr", type=float, default=1e-4,
         help="base learning rate (AE)")

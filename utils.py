@@ -2,10 +2,11 @@
 import os
 
 import numpy as np
-import scipy.misc
+import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import CosineAnnealingLR
+import torchvision
 
 import data
 from PCGModel import Structure_Generator
@@ -24,19 +25,6 @@ def projection(Vs, Vt):
     minDist = torch.gather_nd(dist, torch.stack([torch.range(VsN), idx], axis=1))
     return proj, minDist
 
-
-def mkdir(path):
-    if not os.path.exists(path): os.makedirs(path)
-
-
-def imread(fname):
-    return scipy.misc.imread(fname) / 255.0
-
-
-def imsave(fname, array):
-    scipy.misc.toimage(array, cmin=0.0, cmax=1.0).save(fname)
-
-
 # make image summary from image batch
 def imageSummary(opt, tag, image, H, W):
     blockSize = opt.visBlockSize
@@ -49,12 +37,6 @@ def imageSummary(opt, tag, image, H, W):
     summary = torch.summary.image(tag, imageBlocks)
     return summary
 
-
-
-# save model
-def saveModel(opt, sess, saver, it):
-    saver.save(sess, "models_{0}/{1}_it{2}.ckpt".format(
-        opt.group, opt.model, it))
 
 def build_structure_generator(cfg):
     return Structure_Generator()
@@ -75,14 +57,54 @@ def make_lr_scheduler(cfg, optimizer):
     return CosineAnnealingLR(optimizer, 10)
 
 def make_data_fixed(cfg, tfms):
-    ds_tr = data.PointCloud2dDataset(cfg, loadNovel=False, loadFixedOut=True, loadTest=False, transforms=tfms)
-    dl_tr = DataLoader(
-        ds_tr, batch_size=cfg.chunkSize, shuffle=True,
-        collate_fn=ds_tr.collate_fn_fixed)
+    ds_tr = data.PointCloud2dDataset(cfg, loadNovel=False, loadFixedOut=True,
+                                     loadTest=False, transforms=tfms)
+    dl_tr = DataLoader(ds_tr, batch_size=cfg.chunkSize, shuffle=True,
+                       drop_last=True, collate_fn=ds_tr.collate_fn_fixed)
 
-    ds_test = data.PointCloud2dDataset(cfg, loadNovel=False, loadFixedOut=True, loadTest=True, transforms=tfms)
-    dl_test = DataLoader(
-        ds_test, batch_size=cfg.chunkSize, shuffle=False,
-        collate_fn=ds_test.collate_fn_fixed)
+    ds_test = data.PointCloud2dDataset(cfg, loadNovel=False, loadFixedOut=True,
+                                       loadTest=True, transforms=tfms)
+    dl_test = DataLoader(ds_test, batch_size=cfg.chunkSize, shuffle=False,
+                         drop_last=True, collate_fn=ds_test.collate_fn_fixed)
     return [dl_tr, dl_test]
+
+# logging
+def save_best_model(model_path, model, df_hist):
+    if df_hist['val_loss'].tail(1).iloc[0] <= df_hist['val_loss'].min():
+        torch.save(model.state_dict(), f"{model_path}/best.pth")
+
+def log_hist(logger, df_hist):
+    last = df_hist.tail(1)
+    best = df_hist.sort_values('val_loss').head(1)
+    summary = pd.concat((last, best)).reset_index(drop=True)
+    summary['name'] = ['Last', 'Best']
+    logger.debug(summary[['name', 'epoch', 'train_loss', 'val_loss']])
+    logger.debug('')
+
+def write_on_board_losses(writer, df_hist):
+    row = df_hist.tail(1).iloc[0]
+
+    writer.add_scalars('loss', {
+        'train': row.train_loss,
+        'val': row.val_loss,
+    }, row.epoch)
+    writer.add_scalars('loss_XYZ', {
+        'train': row.train_loss_XYZ,
+        'val': row.val_loss_XYZ,
+    }, row.epoch)
+    writer.add_scalars('loss_mask', {
+        'train': row.train_loss_mask,
+        'val': row.val_loss_mask,
+    }, row.epoch)
+
+def write_on_board_images(writer, images, epoch):
+    writer.add_image('RGB', images['RGB'], epoch)
+    writer.add_image('depth/GT', images['depthGT'], epoch)
+    writer.add_image('depth/pred', images['depth'], epoch)
+    writer.add_image('depth/pred_mask', images['depth_mask'], epoch)
+    writer.add_image('mask/GT', images['maskGT'], epoch)
+    writer.add_image('mask/pred', images['mask'], epoch)
+
+def make_grid(t):
+    return torchvision.utils.make_grid(t, normalize=True, range=(0, 1))
 
