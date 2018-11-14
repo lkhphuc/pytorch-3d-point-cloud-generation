@@ -98,7 +98,7 @@ class Trainer_stg1:
         epoch_loss_mask = running_loss_mask / len(data_loader.dataset)
         epoch_loss = running_loss / len(data_loader.dataset)
 
-        print(f"Train loss: {epoch_loss}")
+        print(f"\tTrain loss: {epoch_loss}")
 
         return {"epoch_loss_XYZ": epoch_loss_XYZ,
                 "epoch_loss_mask": epoch_loss_mask,
@@ -153,7 +153,7 @@ class Trainer_stg1:
         epoch_loss_mask = running_loss_mask / len(data_loader.dataset)
         epoch_loss = running_loss / len(data_loader.dataset)
 
-        print(f"Val loss: {epoch_loss}")
+        print(f"\tVal loss: {epoch_loss}")
 
         return {"epoch_loss_XYZ": epoch_loss_XYZ,
                 "epoch_loss_mask": epoch_loss_mask,

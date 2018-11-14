@@ -21,8 +21,8 @@ def parse_arguments():
         "--experiment", default="0",
         help="name for experiment")
     parser.add_argument(
-        "--model", default="pcg",
-        help="name for model instance")
+        "--model", default="PCG",
+        help="name for model")
     parser.add_argument(
         "--load", default=None,
         help="load trained model to fine-tune/evaluate")
@@ -46,9 +46,9 @@ def parse_arguments():
         help="base learning rate (AE)")
     parser.add_argument(
         "--lrDecay", type=float, default=1.0,
-        help="learning rate decay multiplier")
+        help="learning rate decay multiplier (gamma)")
     parser.add_argument(
-        "--lrStep", type=int, default=20000,
+        "--lrStep", type=int, default=20,
         help="learning rate decay step size")
 
     # Model related
@@ -107,7 +107,7 @@ def get_arguments():
 
     print(f"{cfg.model}_{cfg.experiment}")
     print("------------------------------------------")
-    print(f"batch size: {cfg.batchSize}, category: {cfg.category}")
+    print(f"batch size: {cfg.batchSize}, \ category: {cfg.category}")
     print(f"size: {cfg.inH}x{cfg.inW}(in), \
           {cfg.outH}x{cfg.outW}(out), \
           {cfg.H}x{cfg.W}(pred)")
