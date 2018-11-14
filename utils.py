@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import DataLoader
-from torch.optim.lr_scheduler import CosineAnnealingLR
+from torch.optim.lr_scheduler import ExponentialLR
 import torchvision
 
 import data
@@ -54,7 +54,7 @@ def make_optimizer(cfg, model):
     return optimizer
 
 def make_lr_scheduler(cfg, optimizer):
-    return CosineAnnealingLR(optimizer, 10)
+    return ExponentialLR(optimizer, cfg.lrDecay)
 
 def make_data_fixed(cfg, tfms):
     ds_tr = data.PointCloud2dDataset(cfg, loadNovel=False, loadFixedOut=True,

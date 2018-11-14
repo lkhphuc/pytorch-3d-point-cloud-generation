@@ -19,6 +19,7 @@ class Trainer_stg1:
         print("======= TRAINING START =======")
 
         for epoch in range(self.cfg.startEpoch, self.cfg.endEpoch):
+            print(f"Epoch {epoch}:")
             train_epoch_loss = self._train_on_epoch(model, optimizer, scheduler)
             val_epoch_loss = self._val_on_epoch(model)
 
@@ -97,6 +98,7 @@ class Trainer_stg1:
         epoch_loss_mask = running_loss_mask / len(data_loader.dataset)
         epoch_loss = running_loss / len(data_loader.dataset)
 
+        print(f"Train loss: {epoch_loss}")
 
         return {"epoch_loss_XYZ": epoch_loss_XYZ,
                 "epoch_loss_mask": epoch_loss_mask,
@@ -150,6 +152,8 @@ class Trainer_stg1:
         epoch_loss_XYZ = running_loss_XYZ / len(data_loader.dataset)
         epoch_loss_mask = running_loss_mask / len(data_loader.dataset)
         epoch_loss = running_loss / len(data_loader.dataset)
+
+        print(f"Val loss: {epoch_loss}")
 
         return {"epoch_loss_XYZ": epoch_loss_XYZ,
                 "epoch_loss_mask": epoch_loss_mask,

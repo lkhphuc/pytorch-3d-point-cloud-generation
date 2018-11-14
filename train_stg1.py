@@ -65,6 +65,6 @@ if __name__ == "__main__":
     trainer = Trainer_stg1(cfg, dataloaders, criterions, device, on_after_epoch)
 
     hist = trainer.train(model, optimizer, scheduler)
-    hist.to_csv(f"{EXPERIMENT}/hist.csv", index=False)
+    hist.to_csv(f"logs/{EXPERIMENT}.csv", index=False)
 
     writer.close()
