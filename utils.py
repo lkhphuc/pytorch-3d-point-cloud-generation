@@ -50,7 +50,7 @@ def make_optimizer(cfg, model):
     #     weight_decay = cfg.lrDecay
     #     params += [{"params": [value], "lr": cfg.lr, "weight_decay": weight_decay}]
     params = model.parameters()
-    optimizer = torch.optim.SGD(params, cfg.lr)
+    optimizer = torch.optim.Adam(params, cfg.lr)
     return optimizer
 
 def make_lr_scheduler(cfg, optimizer):
@@ -106,5 +106,5 @@ def write_on_board_images(writer, images, epoch):
     writer.add_image('mask/pred', images['mask'], epoch)
 
 def make_grid(t):
-    return torchvision.utils.make_grid(t, normalize=True, range=(0, 1))
+    return torchvision.utils.make_grid(t, normalize=True)
 

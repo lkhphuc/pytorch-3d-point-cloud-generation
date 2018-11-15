@@ -5,8 +5,7 @@ import torch.nn.functional as F
 from utils import make_grid
 
 class Trainer_stg1:
-    def __init__(self, cfg, data_loaders, criterions,
-                 device, on_after_epoch=None):
+    def __init__(self, cfg, data_loaders, criterions, device, on_after_epoch=None):
         self.cfg = cfg
         self.data_loaders = data_loaders
         self.l1 = criterions[0]
@@ -88,7 +87,7 @@ class Trainer_stg1:
                 loss.backward()
                 optimizer.step()
 
-            scheduler.step()
+            if scheduler: scheduler.step()
 
             running_loss_XYZ += loss_XYZ.item() * input_images.size(0)
             running_loss_mask += loss_mask.item() * input_images.size(0)
@@ -170,12 +169,12 @@ class Trainer_stg1:
             XY = XYZ[:, :self.cfg.outViewN * 2, :, :]
             depth = XYZ[:, self.cfg.outViewN * 2:self.cfg.outViewN * 3, :,  :]
             mask = (maskLogit > 0).byte()
-            depth_mask = depth.masked_fill(1-mask, 0)
+            depth_mask = depth.masked_fill(1-mask, 0.0)
 
         return {'RGB': make_grid(input_images),
                 'depth': make_grid(1-depth[:, 0:1, :, :]),
                 'depth_mask': make_grid(1-depth_mask[:, 0:1, :, :]),
                 'depthGT': make_grid(1-depthGT[:, 0:1, :, :]),
-                'mask': make_grid(mask[:, 0:1,:, :]),
+                'mask': make_grid(torch.sigmoid(maskLogit[:, 0:1,:, :])),
                 'maskGT': make_grid(maskGT[:, 0:1, :, :]),
                 }

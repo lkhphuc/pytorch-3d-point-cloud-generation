@@ -9,47 +9,74 @@ def parse_arguments():
 
     # Training related
     parser.add_argument(
-        "--training", type=bool, default=True,
-        help="training or testing")
+        "--experiment", default="0",
+        help="name for experiment")
+    parser.add_argument(
+        "--model", default="PCG",
+        help="name for model")
+
     parser.add_argument(
         "--path", default="data",
         help="path to data folder")
     parser.add_argument(
         "--category", default="03001627",
         help="category ID number")
+
     parser.add_argument(
-        "--experiment", default="0",
-        help="name for experiment")
-    parser.add_argument(
-        "--model", default="PCG",
-        help="name for model")
+        "--training", type=bool, default=True,
+        help="training or testing")
     parser.add_argument(
         "--load", default=None,
         help="load trained model to fine-tune/evaluate")
+
     parser.add_argument(
         "--startEpoch", type=int, default=0,
         help="resume training from iteration number")
     parser.add_argument(
         "--endEpoch", type=int, default=10000,
         help="endEpoch")
-    parser.add_argument(
-        "--lambdaDepth", type=float, default=1.0,
-        help="loss weight factor (depth)")
+
     parser.add_argument(
         "--chunkSize", type=int, default=100,
         help="Number of unique CAD models in each batch")
     parser.add_argument(
         "--batchSize", type=int, default=20,
         help="number of unique images from chunkSize CADs models")
+
+    # Optimizer
+    parser.add_argument(
+        "--optim", type=str, default='adam',
+        help="optimizer to use")
     parser.add_argument(
         "--lr", type=float, default=1e-4,
         help="base learning rate (AE)")
+    ## Adam 
+    parser.add_argument(
+        "--wd", type=float, default=0.0,
+        help="weight decay as implemented in Adam optimizer (L2 norm)")
+    parser.add_argument(
+        "--trueWD", type=float, default=0.0,
+        help="TRUE weight decay in Adam")
+    ## SGD
+    parser.add_argument(
+        "--lambdaDepth", type=float, default=1.0,
+        help="loss weight factor (depth)")
+
+    # LR scheduler
+    parser.add_argument(
+        "--lrSched", type=str, default=None,
+        help="What learning rate scheduler to use"
+    )
     parser.add_argument(
         "--lrDecay", type=float, default=1.0,
         help="learning rate decay multiplier (gamma)")
+    ## StepLR
     parser.add_argument(
-        "--lrStep", type=int, default=20,
-        help="learning rate decay step size")
+        "--lrStep", type=int, default=1,
+        help="how many epochs until update lr")
+    parser.add_argument(
+        "--gpu", type=int, default=0,
+        help="which GPU to use")
 
     # Model related
     parser.add_argument("--arch", default=None)
