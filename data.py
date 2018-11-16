@@ -63,7 +63,7 @@ class PointCloud2dDataset(Dataset):
                 [viewN, height, width, channels]
         Return: {}
             inputImage: [batchSize, height, width, channels]
-            targetTrans: [batchSize, novelN, 4]
+            targetTrans: (numpy.ndarray)[batchSize, novelN, 4]
             depthGT: [batchSize, novelN, height, width, 1]
             maskGT: [batchSize, novelN, height, width, 1]
         """
@@ -86,20 +86,17 @@ class PointCloud2dDataset(Dataset):
         maskGT = np.expand_dims(
             batch_n["mask"][modelIdxTile, sampleIdx], axis=-1).astype(np.int)
         if self.transforms:
-            images = torch.stack([
-                self.transforms(images[i])
-                for i in range(self.cfg.batchSize)], dim=0)
-            targetTrans = torch.stack([
-                self.transforms(targetTrans[i])
-                for i in range(self.cfg.batchSize)], dim=0)
-            depthGT = torch.stack([
-                self.transforms(depthGT[i])
-                for i in range(self.cfg.batchSize)], dim=0)
-            maskGT = torch.stack([
-                self.transforms(maskGT[i])
-                for i in range(self.cfg.batchSize)], dim = 0)
+            images = torch.stack(
+                [self.transforms(images[i])
+                 for i in range(images.shape[0])], dim=0)
+            depthGT = torch.stack(
+                [self.transforms(depthGT[i])
+                 for i in range(self.cfg.batchSize)], dim=0)
+            maskGT = torch.stack(
+                [self.transforms(maskGT[i])
+                 for i in range(self.cfg.batchSize)], dim=0)
 
-        return { "inputImage": images,
+        return {"inputImage": images,
                 "targetTrans": targetTrans,
                 "depthGT": depthGT,
                 "maskGT": maskGT }
@@ -126,15 +123,15 @@ class PointCloud2dDataset(Dataset):
         depthGT = np.transpose(batch_n["depth"][modelIdx], axes=[0, 2, 3, 1])
         maskGT = np.transpose(batch_n["mask"][modelIdx], axes=[0, 2, 3, 1]).astype(np.int)
         if self.transforms:
-            images = torch.stack([
-                self.transforms(images[i])
-                for i in range(images.shape[0])], dim=0)
-            depthGT = torch.stack([
-                self.transforms(depthGT[i])
-                for i in range(depthGT.shape[0])], dim=0)
-            maskGT = torch.stack([
-                self.transforms(maskGT[i])
-                for i in range(maskGT.shape[0])], dim=0)
+            images = torch.stack(
+                [self.transforms(images[i])
+                 for i in range(images.shape[0])], dim=0)
+            depthGT = torch.stack(
+                [self.transforms(depthGT[i])
+                 for i in range(depthGT.shape[0])], dim=0)
+            maskGT = torch.stack(
+                [self.transforms(maskGT[i])
+                 for i in range(maskGT.shape[0])], dim=0)
 
         return {
             "inputImage": images,
@@ -152,6 +149,6 @@ if __name__ == "__main__":
     ds_fixed = PointCloud2dDataset(CFG, transforms=tfms)
     dl_fixed = DataLoader(ds_fixed, batch_size=CFG.chunkSize, shuffle=False, collate_fn=ds_fixed.collate_fn_fixed)
 
-    ds_novel = PointCloud2dDataset(CFG, loadNovel=True)
+    ds_novel = PointCloud2dDataset(CFG, loadNovel=True, transforms=tfms)
     dl_novel = DataLoader(ds_novel, batch_size=CFG.chunkSize, shuffle=False, collate_fn=ds_novel.collate_fn)
 

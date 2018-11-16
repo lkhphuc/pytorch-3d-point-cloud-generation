@@ -39,8 +39,7 @@ if __name__ == "__main__":
     criterions = [l1_loss, bce_loss]
 
     print("Build Structure Generator")
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = utils.build_structure_generator(cfg).to(device)
+    model = utils.build_structure_generator(cfg).to(cfg.device)
 
     print("Create optimizer and scheduler")
     optimizer = utils.make_optimizer(cfg, model)
@@ -50,8 +49,7 @@ if __name__ == "__main__":
     logger = logging.getLogger("logger")
     logger.setLevel(logging.DEBUG)
     if not logger.hasHandlers():
-        logger.addHandler(
-            logging.FileHandler(filename=f"logs/{EXPERIMENT}.log"))
+        logger.addHandler(logging.FileHandler(filename=f"logs/{EXPERIMENT}.log"))
 
     print("Create tensorboard logger")
     writer = SummaryWriter(comment="_"+EXPERIMENT)
@@ -62,7 +60,7 @@ if __name__ == "__main__":
         utils.write_on_board_losses(writer, df_hist)
         utils.write_on_board_images(writer, images, epoch)
 
-    trainer = Trainer_stg1(cfg, dataloaders, criterions, device, on_after_epoch)
+    trainer = Trainer_stg1(cfg, dataloaders, criterions, on_after_epoch)
 
     hist = trainer.train(model, optimizer, scheduler)
     hist.to_csv(f"logs/{EXPERIMENT}.csv", index=False)

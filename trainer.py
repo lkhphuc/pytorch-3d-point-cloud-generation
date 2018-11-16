@@ -5,12 +5,11 @@ import torch.nn.functional as F
 from utils import make_grid
 
 class Trainer_stg1:
-    def __init__(self, cfg, data_loaders, criterions, device, on_after_epoch=None):
+    def __init__(self, cfg, data_loaders, criterions, on_after_epoch=None):
         self.cfg = cfg
         self.data_loaders = data_loaders
         self.l1 = criterions[0]
         self.sigmoid_bce = criterions[1]
-        self.device = device
         self.history = []
         self.on_after_epoch = on_after_epoch
 
@@ -50,9 +49,9 @@ class Trainer_stg1:
 
         for batch in data_loader:
 
-            input_images = batch['inputImage'].float().to(self.device)
-            depthGT = batch['depthGT'].float().to(self.device)
-            maskGT = batch['maskGT'].float().to(self.device)
+            input_images = batch['inputImage'].float().to(self.cfg.device)
+            depthGT = batch['depthGT'].float().to(self.cfg.device)
+            maskGT = batch['maskGT'].float().to(self.cfg.device)
 
             # ------ define ground truth------
             # Shape: [H,W]
@@ -66,7 +65,7 @@ class Trainer_stg1:
                 YGT.repeat([self.cfg.outViewN, 1, 1])], dim=0)
             # Shape: [1, 2V, H, W] (Expand to new dim)
             XYGT = torch.cat(
-                [XYGT[None, :] for i in range(depthGT.size(0))], dim=0).to(self.device)
+                [XYGT[None, :] for i in range(depthGT.size(0))], dim=0).to(self.cfg.device)
 
             optimizer.zero_grad()
 
@@ -113,9 +112,9 @@ class Trainer_stg1:
 
         for batch in data_loader:
 
-            input_images = batch['inputImage'].float().to(self.device)
-            depthGT = batch['depthGT'].float().to(self.device)
-            maskGT = batch['maskGT'].float().to(self.device)
+            input_images = batch['inputImage'].float().to(self.cfg.device)
+            depthGT = batch['depthGT'].float().to(self.cfg.device)
+            maskGT = batch['maskGT'].float().to(self.cfg.device)
 
             # ------ define ground truth------
             # Shape: [H,W]
@@ -129,7 +128,7 @@ class Trainer_stg1:
                 YGT.repeat([self.cfg.outViewN, 1, 1])], dim=0)
             # Shape: [1, 2V, H, W] (Expand to new dim)
             XYGT = torch.cat(
-                [XYGT[None, :] for i in range(depthGT.size(0))], dim=0).to(self.device)
+                [XYGT[None, :] for i in range(depthGT.size(0))], dim=0).to(self.cfg.device)
 
             with torch.set_grad_enabled(False):
                 XYZ, maskLogit = model(input_images)
@@ -160,9 +159,9 @@ class Trainer_stg1:
 
     def _make_images_board(self, model, dataloader):
         batch = next(iter(dataloader))
-        input_images = batch['inputImage'].float().to(self.device)
-        depthGT = batch['depthGT'].float().to(self.device)
-        maskGT = batch['maskGT'].float().to(self.device)
+        input_images = batch['inputImage'].float().to(self.cfg.device)
+        depthGT = batch['depthGT'].float().to(self.cfg.device)
+        maskGT = batch['maskGT'].float().to(self.cfg.device)
 
         with torch.set_grad_enabled(False):
             XYZ, maskLogit = model(input_images)
