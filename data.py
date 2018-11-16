@@ -63,7 +63,7 @@ class PointCloud2dDataset(Dataset):
                 [viewN, height, width, channels]
         Return: {}
             inputImage: [batchSize, height, width, channels]
-            targetTrans: (numpy.ndarray)[batchSize, novelN, 4]
+            targetTrans: [batchSize, novelN, 4]
             depthGT: [batchSize, novelN, height, width, 1]
             maskGT: [batchSize, novelN, height, width, 1]
         """
@@ -85,16 +85,11 @@ class PointCloud2dDataset(Dataset):
             batch_n["depth"][modelIdxTile, sampleIdx], axis=-1)
         maskGT = np.expand_dims(
             batch_n["mask"][modelIdxTile, sampleIdx], axis=-1).astype(np.int)
-        if self.transforms:
-            images = torch.stack(
-                [self.transforms(images[i])
-                 for i in range(images.shape[0])], dim=0)
-            depthGT = torch.stack(
-                [self.transforms(depthGT[i])
-                 for i in range(self.cfg.batchSize)], dim=0)
-            maskGT = torch.stack(
-                [self.transforms(maskGT[i])
-                 for i in range(self.cfg.batchSize)], dim=0)
+        # To tensor
+        images = torch.from_numpy(images).permute((0,3,1,2))
+        targetTrans = torch.from_numpy(targetTrans)
+        depthGT = torch.from_numpy(depthGT).permute((0,1,4,2,3))
+        maskGT = torch.from_numpy(maskGT).permute((0,1,4,2,3))
 
         return {"inputImage": images,
                 "targetTrans": targetTrans,
@@ -122,16 +117,11 @@ class PointCloud2dDataset(Dataset):
         images = batch_n["image_in"][modelIdx, angleIdx]
         depthGT = np.transpose(batch_n["depth"][modelIdx], axes=[0, 2, 3, 1])
         maskGT = np.transpose(batch_n["mask"][modelIdx], axes=[0, 2, 3, 1]).astype(np.int)
-        if self.transforms:
-            images = torch.stack(
-                [self.transforms(images[i])
-                 for i in range(images.shape[0])], dim=0)
-            depthGT = torch.stack(
-                [self.transforms(depthGT[i])
-                 for i in range(depthGT.shape[0])], dim=0)
-            maskGT = torch.stack(
-                [self.transforms(maskGT[i])
-                 for i in range(maskGT.shape[0])], dim=0)
+
+        # Convert to Tensor
+        images = torch.from_numpy(images).permute((0,3,1,2))
+        depthGT = torch.from_numpy(depthGT).permute((0,3,1,2))
+        maskGT = torch.from_numpy(maskGT).permut((0,3,1,2))
 
         return {
             "inputImage": images,
@@ -144,11 +134,12 @@ if __name__ == "__main__":
     from torchvision import transforms
 
     CFG = options.get_arguments()
-    tfms = transforms.ToTensor()
 
-    ds_fixed = PointCloud2dDataset(CFG, transforms=tfms)
-    dl_fixed = DataLoader(ds_fixed, batch_size=CFG.chunkSize, shuffle=False, collate_fn=ds_fixed.collate_fn_fixed)
+    ds_fixed = PointCloud2dDataset(CFG)
+    dl_fixed = DataLoader(ds_fixed, batch_size=CFG.chunkSize,
+                          shuffle=False, collate_fn=ds_fixed.collate_fn_fixed)
 
-    ds_novel = PointCloud2dDataset(CFG, loadNovel=True, transforms=tfms)
-    dl_novel = DataLoader(ds_novel, batch_size=CFG.chunkSize, shuffle=False, collate_fn=ds_novel.collate_fn)
+    ds_novel = PointCloud2dDataset(CFG, loadNovel=True)
+    dl_novel = DataLoader(ds_novel, batch_size=CFG.chunkSize,
+                          shuffle=False, collate_fn=ds_novel.collate_fn)
 

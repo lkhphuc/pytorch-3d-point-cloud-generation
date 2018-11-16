@@ -17,7 +17,7 @@ def fuse3D(cfg, XYZ, maskLogit, fuseTrans):
         fuseTrans (Tensor:[V, 4])
     Return:
         XYZid (Tensor [B,3,VHW]): point clouds
-        ML (Tensor [B,1,BHW]): depth stack
+        ML (Tensor [B,1,VHW]): depth stack
      """
     # 2D to 3D coordinate transformation
     invKhom = cfg.Khom2Dto3D.inverse() # [4x4]
