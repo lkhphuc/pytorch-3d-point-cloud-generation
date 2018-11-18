@@ -24,11 +24,14 @@ def parse_arguments():
         help="category ID number")
 
     parser.add_argument(
-        "--training", type=bool, default=True,
-        help="training or testing")
+        "--phase", type=str, default="stg1",
+        help="stg1, stg2, eval")
+    parser.add_argument(
+        "--loadPath", type=str, default=None,
+        help="path to trained stage 1 model to finetune stage 2")
     parser.add_argument(
         "--load", type=int, default=None,
-        help="load trained model to fine-tune/evaluate")
+        help="load stage 1 trained model to finetune stage 2")
 
     parser.add_argument(
         "--startEpoch", type=int, default=0,
@@ -137,9 +140,11 @@ def get_arguments():
     print(f"size:{cfg.inH}x{cfg.inW}(in), {cfg.outH}x{cfg.outW}(out), {cfg.H}x{cfg.W}(pred)")
     print(f"viewN:{cfg.outViewN}(out), upscale:{cfg.upscale}, novelN:{cfg.novelN}")
     print("------------------------------------------")
-    if cfg.training:
-        print(f"Device: {cfg.device}")
-        print(f"lr:{cfg.lr:.2e} (decay:{cfg.lrDecay}, step size:{cfg.lrStep})")
-        print(f"depth loss weight:{cfg.lambdaDepth}")
+    print(f"Device: {cfg.device}")
+    print(f"lr:{cfg.lr:.2e} (decay:{cfg.lrDecay}, step size:{cfg.lrStep})")
+    print(f"depth loss weight:{cfg.lambdaDepth}")
+    if cfg.phase.lower() in "stg2":
+        print(f"Stg1 experiment: {cfg.loadPath}")
+        print(f"Stg1 model: {cfg.load}")
 
     return cfg

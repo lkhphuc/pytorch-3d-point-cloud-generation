@@ -3,6 +3,7 @@ import torch
 import torch.nn.functional as F
 
 from utils import make_grid
+import transform
 
 class Trainer_stg1:
     def __init__(self, cfg, data_loaders, criterions, on_after_epoch=None):
@@ -176,4 +177,169 @@ class Trainer_stg1:
                 'depthGT': make_grid(1-depthGT[:, 0:1, :, :]),
                 'mask': make_grid(torch.sigmoid(maskLogit[:, 0:1,:, :])),
                 'maskGT': make_grid(maskGT[:, 0:1, :, :]),
+                }
+
+class Trainer_stg2:
+    def __init__(self, cfg, data_loaders, criterions, on_after_epoch=None):
+        self.cfg = cfg
+        self.data_loaders = data_loaders
+        self.l1 = criterions[0]
+        self.sigmoid_bce = criterions[1]
+        self.history = []
+        self.on_after_epoch = on_after_epoch
+
+    def train(self, model, optimizer, scheduler):
+        print("======= TRAINING START =======")
+
+        for epoch in range(self.cfg.startEpoch, self.cfg.endEpoch):
+            print(f"Epoch {epoch}:")
+            train_epoch_loss = self._train_on_epoch(model, optimizer, scheduler)
+            val_epoch_loss = self._val_on_epoch(model)
+
+            hist = {
+                'epoch': epoch,
+                'train_loss_depth': train_epoch_loss["epoch_loss_depth"],
+                'train_loss_mask': train_epoch_loss["epoch_loss_mask"],
+                'train_loss': train_epoch_loss["epoch_loss"],
+                'val_loss_depth': val_epoch_loss["epoch_loss_depth"],
+                'val_loss_mask': val_epoch_loss["epoch_loss_mask"],
+                'val_loss': val_epoch_loss["epoch_loss"],
+            }
+            self.history.append(hist)
+
+            if self.on_after_epoch is not None:
+                images = self._make_images_board(model, self.data_loaders[1])
+                self.on_after_epoch(model, pd.DataFrame(self.history), images, epoch)
+
+        print("======= TRAINING DONE =======")
+        return pd.DataFrame(self.history)
+
+    def _train_on_epoch(self, model, optimizer, scheduler):
+        model.train()
+
+        data_loader = self.data_loaders[0]
+        running_loss_depth = 0.0
+        running_loss_mask = 0.0
+        running_loss = 0.0
+
+        for batch in data_loader:
+
+            input_images = batch['inputImage'].float().to(self.cfg.device)
+            renderTrans = batch['targetTrans'].float().to(self.cfg.device)
+            depthGT = batch['depthGT'].float().to(self.cfg.device)
+            maskGT = batch['maskGT'].float().to(self.cfg.device)
+
+            optimizer.zero_grad()
+
+            with torch.set_grad_enabled(True):
+                XYZ, maskLogit = model(input_images)
+                mask = (maskLogit > 0).byte()
+
+                # ------ build transformer ------
+                fuseTrans = F.normalize(self.cfg.fuseTrans, p=2, dim=1)
+                XYZid, ML = transform.fuse3D(
+                    self.cfg, XYZ, maskLogit, fuseTrans) # [B,3,VHW],[B,1,VHW]
+                newDepth, newMaskLogit, collision = transform.render2D(
+                    self.cfg, XYZid, ML, renderTrans)  # [B,N,H,W,1]
+
+                # ------ Compute loss ------
+                loss_depth = self.l1(newDepth.masked_select(collision==1),
+                                     depthGT.masked_select(collision==1))
+                loss_mask = self.sigmoid_bce(newMaskLogit, maskGT)
+                loss = loss_mask + self.cfg.lambdaDepth * loss_depth
+
+                # Update weights
+                loss.backward()
+                optimizer.step()
+
+            if scheduler: scheduler.step()
+
+            running_loss_depth += loss_depth.item() * input_images.size(0)
+            running_loss_mask += loss_mask.item() * input_images.size(0)
+            running_loss += loss.item() * input_images.size(0)
+
+        epoch_loss_depth = running_loss_depth / len(data_loader.dataset)
+        epoch_loss_mask = running_loss_mask / len(data_loader.dataset)
+        epoch_loss = running_loss / len(data_loader.dataset)
+
+        print(f"\tTrain loss: {epoch_loss}")
+
+        return {"epoch_loss_depth": epoch_loss_depth,
+                "epoch_loss_mask": epoch_loss_mask,
+                "epoch_loss": epoch_loss, }
+
+    def _val_on_epoch(self, model):
+        model.eval()
+
+        data_loader = self.data_loaders[1]
+        running_loss_depth = 0.0
+        running_loss_mask = 0.0
+        running_loss = 0.0
+
+        for batch in data_loader:
+
+            input_images = batch['inputImage'].float().to(self.cfg.device)
+            renderTrans = batch['targetTrans'].float().to(self.cfg.device)
+            depthGT = batch['depthGT'].float().to(self.cfg.device)
+            maskGT = batch['maskGT'].float().to(self.cfg.device)
+
+            with torch.set_grad_enabled(False):
+                XYZ, maskLogit = model(input_images)
+                mask = (maskLogit > 0).byte()
+
+                # ------ build transformer ------
+                fuseTrans = F.normalize(self.cfg.fuseTrans, p=2, dim=1)
+                XYZid, ML = transform.fuse3D(
+                    self.cfg, XYZ, maskLogit, fuseTrans) # [B,3,VHW],[B,1,VHW]
+                newDepth, newMaskLogit, collision = transform.render2D(
+                    self.cfg, XYZid, ML, renderTrans)  # [B,N,H,W,1]
+
+                # ------ Compute loss ------
+                loss_depth = self.l1(newDepth.masked_select(collision==1),
+                                     depthGT.masked_select(collision==1))
+                loss_mask = self.sigmoid_bce(newMaskLogit, maskGT)
+                loss = loss_mask + self.cfg.lambdaDepth * loss_depth
+
+            running_loss_depth += loss_depth.item() * input_images.size(0)
+            running_loss_mask += loss_mask.item() * input_images.size(0)
+            running_loss += loss.item() * input_images.size(0)
+
+        epoch_loss_depth = running_loss_depth / len(data_loader.dataset)
+        epoch_loss_mask = running_loss_mask / len(data_loader.dataset)
+        epoch_loss = running_loss / len(data_loader.dataset)
+
+        print(f"\tVal loss: {epoch_loss}")
+
+        return {"epoch_loss_depth": epoch_loss_depth,
+                "epoch_loss_mask": epoch_loss_mask,
+                "epoch_loss": epoch_loss, }
+
+    def _make_images_board(self, model, dataloader):
+        batch = next(iter(dataloader))
+        input_images = batch['inputImage'].float().to(self.cfg.device)
+        renderTrans = batch['targetTrans'].float().to(self.cfg.device)
+        depthGT = batch['depthGT'].float().to(self.cfg.device)
+        maskGT = batch['maskGT'].float().to(self.cfg.device)
+
+        with torch.set_grad_enabled(False):
+            XYZ, maskLogit = model(input_images)
+            mask = (maskLogit > 0).byte()
+
+            # ------ build transformer ------
+            fuseTrans = F.normalize(self.cfg.fuseTrans, p=2, dim=1)
+            XYZid, ML = transform.fuse3D(
+                self.cfg, XYZ, maskLogit, fuseTrans) # [B,3,VHW],[B,1,VHW]
+            newDepth, newMaskLogit, collision = transform.render2D(
+                self.cfg, XYZid, ML, renderTrans)  # [B,N,1,H,W]
+
+
+        return {'RGB': make_grid(input_images),
+                'depth': make_grid(
+                    ((1 - newDepth) * collision==1)[:, 0, 0:1, :, :]),
+                'depthGT': make_grid(1-depthGT[:, 0, 0:1, :, :]),
+                'mask': make_grid(
+                    torch.sigmoid(maskLogit[:, 0:1,:, :])),
+                'mask_rendered': make_grid(
+                    torch.sigmoid(newMaskLogit[:, 0, 0:1,:, :])),
+                'maskGT': make_grid(maskGT[:, 0, 0:1, :, :]),
                 }

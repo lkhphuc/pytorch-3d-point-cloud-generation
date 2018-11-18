@@ -5,7 +5,8 @@ import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import DataLoader
-from torch.optim.lr_scheduler import ExponentialLR
+from torch import optim
+from torch.optim import lr_scheduler
 import torchvision
 
 import data
@@ -25,36 +26,31 @@ def projection(Vs, Vt):
     minDist = torch.gather_nd(dist, torch.stack([torch.range(VsN), idx], axis=1))
     return proj, minDist
 
-# make image summary from image batch
-def imageSummary(opt, tag, image, H, W):
-    blockSize = opt.visBlockSize
-    imageOne = torch.batch_to_space(
-        image[:blockSize**2], crops=[[0, 0], [0, 0]], block_size=blockSize)
-    imagePermute = torch.reshape(imageOne, [H, blockSize, W, blockSize, -1])
-    imageTransp = torch.transpose(imagePermute, [1, 0, 3, 2, 4])
-    imageBlocks = torch.reshape(imageTransp,
-                             [1, H * blockSize, W * blockSize, -1])
-    summary = torch.summary.image(tag, imageBlocks)
-    return summary
-
-
 def build_structure_generator(cfg):
-    return Structure_Generator()
+    model = Structure_Generator()
+    if cfg.load is not None:
+        LOAD_PATH = f"models/{cfg.loadPath}_{cfg.experiment}"
+        print(cfg.load)
+        if cfg.load == 0:
+            model.load_state_dict(torch.load(f"{LOAD_PATH}/best.pth"))
+        else: model.load_state_dict(
+            torch.load(f"{LOAD_PATH}/{cfg.load}.pth"))
+    return model
 
 def make_optimizer(cfg, model):
-    # params = []
-    # for key, value in model.named_parameters():
-    #     if not value.requires_grad:
-    #         continue
-    #     lr = cfg.lr
-    #     weight_decay = cfg.lrDecay
-    #     params += [{"params": [value], "lr": cfg.lr, "weight_decay": weight_decay}]
     params = model.parameters()
-    optimizer = torch.optim.Adam(params, cfg.lr)
-    return optimizer
+    if cfg.optim.lower() in 'adam':
+        if cfg.trueWD: return optim.Adam(params, cfg.lr, weight_decay=0)
+        else : return optim.Adam(params, cfg.lr, weight_decay=cfg.wd)
+    elif cfg.optim.lower() in 'sgd':
+        return optim.SGD(params, cfg.lr)
 
 def make_lr_scheduler(cfg, optimizer):
-    return ExponentialLR(optimizer, cfg.lrDecay)
+    if not cfg.lrSched: return None
+    elif cfg.lrSched.lower() in 'steplr':
+        return lr_scheduler.StepLR(optimizer, cfg.lrStep, cfg.lrDecay)
+    elif cfg.lrSched.lower() in 'exponential':
+        return lr_scheduler.ExponentialLR(optimizer, cfg.lrDecay)
 
 def make_data_fixed(cfg, tfms):
     ds_tr = data.PointCloud2dDataset(cfg, loadNovel=False, loadFixedOut=True,
@@ -67,6 +63,23 @@ def make_data_fixed(cfg, tfms):
     dl_test = DataLoader(ds_test, batch_size=cfg.chunkSize, shuffle=False,
                          drop_last=True, collate_fn=ds_test.collate_fn_fixed)
     return [dl_tr, dl_test]
+
+def make_data_novel(cfg, tfms):
+    ds_tr = data.PointCloud2dDataset(
+        cfg, loadNovel=True, loadFixedOut=False,
+        loadTest=False, transforms=tfms)
+    dl_tr = DataLoader(
+        ds_tr, batch_size=cfg.chunkSize, shuffle=True,
+        drop_last=True, collate_fn=ds_tr.collate_fn)
+
+    ds_test = data.PointCloud2dDataset(
+        cfg, loadNovel=True, loadFixedOut=False,
+        loadTest=True, transforms=tfms)
+    dl_test = DataLoader(
+        ds_test, batch_size=cfg.chunkSize, shuffle=False,
+        drop_last=True, collate_fn=ds_test.collate_fn)
+    return [dl_tr, dl_test]
+
 
 # logging
 def save_best_model(model_path, model, df_hist):
@@ -81,7 +94,7 @@ def log_hist(logger, df_hist):
     logger.debug(summary[['name', 'epoch', 'train_loss', 'val_loss']])
     logger.debug('')
 
-def write_on_board_losses(writer, df_hist):
+def write_on_board_losses_stg1(writer, df_hist):
     row = df_hist.tail(1).iloc[0]
 
     writer.add_scalars('loss', {
@@ -97,13 +110,37 @@ def write_on_board_losses(writer, df_hist):
         'val': row.val_loss_mask,
     }, row.epoch)
 
-def write_on_board_images(writer, images, epoch):
+def write_on_board_losses_stg2(writer, df_hist):
+    row = df_hist.tail(1).iloc[0]
+
+    writer.add_scalars('loss', {
+        'train': row.train_loss,
+        'val': row.val_loss,
+    }, row.epoch)
+    writer.add_scalars('loss_depth', {
+        'train': row.train_loss_depth,
+        'val': row.val_loss_depth,
+    }, row.epoch)
+    writer.add_scalars('loss_mask', {
+        'train': row.train_loss_mask,
+        'val': row.val_loss_mask,
+    }, row.epoch)
+
+def write_on_board_images_stg1(writer, images, epoch):
     writer.add_image('RGB', images['RGB'], epoch)
     writer.add_image('depth/GT', images['depthGT'], epoch)
     writer.add_image('depth/pred', images['depth'], epoch)
     writer.add_image('depth/pred_mask', images['depth_mask'], epoch)
     writer.add_image('mask/GT', images['maskGT'], epoch)
     writer.add_image('mask/pred', images['mask'], epoch)
+
+def write_on_board_images_stg2(writer, images, epoch):
+    writer.add_image('RGB', images['RGB'], epoch)
+    writer.add_image('depth/GT', images['depthGT'], epoch)
+    writer.add_image('depth/pred', images['depth'], epoch)
+    writer.add_image('mask/GT', images['maskGT'], epoch)
+    writer.add_image('mask/pred', images['mask'], epoch)
+    writer.add_image('mask/rendered', images['mask_rendered'], epoch)
 
 def make_grid(t):
     return torchvision.utils.make_grid(t, normalize=True)

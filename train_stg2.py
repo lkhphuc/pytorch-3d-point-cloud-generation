@@ -11,13 +11,13 @@ from tensorboardX import SummaryWriter
 import data
 import options
 import utils
-from trainer import Trainer_stg1
+from trainer import Trainer_stg2
 
 
 if __name__ == "__main__":
 
     print("=======================================================")
-    print("Pretrain structure generator with fixed viewpoints")
+    print("Train structure generator  with joint 2D optimization from novel viewpoints")
     print("=======================================================")
 
     print("Setting configurations...")
@@ -31,7 +31,7 @@ if __name__ == "__main__":
 
     print("Create Dataloader")
     tfms = transforms.ToTensor()
-    dataloaders = utils.make_data_fixed(cfg, tfms)
+    dataloaders = utils.make_data_novel(cfg, tfms)
 
     print("Define losses")
     l1_loss = nn.L1Loss()
@@ -57,10 +57,10 @@ if __name__ == "__main__":
     def on_after_epoch(model, df_hist, images, epoch):
         utils.save_best_model(MODEL_PATH, model, df_hist)
         utils.log_hist(logger, df_hist)
-        utils.write_on_board_losses_stg1(writer, df_hist)
-        utils.write_on_board_images_stg1(writer, images, epoch)
+        utils.write_on_board_losses_stg2(writer, df_hist)
+        utils.write_on_board_images_stg2(writer, images, epoch)
 
-    trainer = Trainer_stg1(cfg, dataloaders, criterions, on_after_epoch)
+    trainer = Trainer_stg2(cfg, dataloaders, criterions, on_after_epoch)
 
     hist = trainer.train(model, optimizer, scheduler)
     hist.to_csv(f"logs/{EXPERIMENT}.csv", index=False)
