@@ -52,32 +52,34 @@ def make_lr_scheduler(cfg, optimizer):
     elif cfg.lrSched.lower() in 'exponential':
         return lr_scheduler.ExponentialLR(optimizer, cfg.lrDecay)
 
-def make_data_fixed(cfg, tfms):
-    ds_tr = data.PointCloud2dDataset(cfg, loadNovel=False, loadFixedOut=True,
-                                     loadTest=False, transforms=tfms)
-    dl_tr = DataLoader(ds_tr, batch_size=cfg.chunkSize, shuffle=True,
-                       drop_last=True, collate_fn=ds_tr.collate_fn_fixed)
+def make_data_fixed(cfg):
+    ds_tr = data.PointCloud2dDataset(
+        cfg, loadNovel=False, loadFixedOut=True, loadTest=False)
+    dl_tr = DataLoader(
+        ds_tr, batch_size=cfg.chunkSize, shuffle=True,
+        drop_last=True, collate_fn=ds_tr.collate_fn_fixed)
 
-    ds_test = data.PointCloud2dDataset(cfg, loadNovel=False, loadFixedOut=True,
-                                       loadTest=True, transforms=tfms)
-    dl_test = DataLoader(ds_test, batch_size=cfg.chunkSize, shuffle=False,
-                         drop_last=True, collate_fn=ds_test.collate_fn_fixed)
+    ds_test = data.PointCloud2dDataset(
+        cfg, loadNovel=False, loadFixedOut=True, loadTest=True)
+    dl_test = DataLoader(
+        ds_test, batch_size=cfg.chunkSize, shuffle=False,
+        drop_last=True, collate_fn=ds_test.collate_fn_fixed)
+
     return [dl_tr, dl_test]
 
-def make_data_novel(cfg, tfms):
+def make_data_novel(cfg):
     ds_tr = data.PointCloud2dDataset(
-        cfg, loadNovel=True, loadFixedOut=False,
-        loadTest=False, transforms=tfms)
+        cfg, loadNovel=True, loadFixedOut=False, loadTest=False)
     dl_tr = DataLoader(
         ds_tr, batch_size=cfg.chunkSize, shuffle=True,
         drop_last=True, collate_fn=ds_tr.collate_fn)
 
     ds_test = data.PointCloud2dDataset(
-        cfg, loadNovel=True, loadFixedOut=False,
-        loadTest=True, transforms=tfms)
+        cfg, loadNovel=True, loadFixedOut=False, loadTest=True)
     dl_test = DataLoader(
         ds_test, batch_size=cfg.chunkSize, shuffle=False,
         drop_last=True, collate_fn=ds_test.collate_fn)
+
     return [dl_tr, dl_test]
 
 

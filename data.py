@@ -14,12 +14,11 @@ class PointCloud2dDataset(Dataset):
     """
 
     def __init__(self, cfg, loadNovel=False, loadFixedOut=True,
-                 loadTest=False, transforms=None):
+                 loadTest=False):
         self.cfg = cfg
         self.loadNovel = loadNovel
         self.loadFixedOut = loadFixedOut
         self.load = "test" if loadTest else "train"
-        self.transforms = transforms
         list_file = f"{cfg.path}/{cfg.category}_{self.load}.list"
         self.CADs = []
         with open(list_file) as file:
@@ -131,7 +130,6 @@ class PointCloud2dDataset(Dataset):
 
 if __name__ == "__main__":
     import options
-    from torchvision import transforms
 
     CFG = options.get_arguments()
 

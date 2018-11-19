@@ -5,7 +5,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from torchvision import transforms
 from tensorboardX import SummaryWriter
 
 import data
@@ -30,8 +29,7 @@ if __name__ == "__main__":
         os.makedirs(MODEL_PATH)
 
     print("Create Dataloader")
-    tfms = transforms.ToTensor()
-    dataloaders = utils.make_data_novel(cfg, tfms)
+    dataloaders = utils.make_data_novel(cfg)
 
     print("Define losses")
     l1_loss = nn.L1Loss()
