@@ -59,7 +59,7 @@ def parse_arguments():
         "--wd", type=float, default=0.0,
         help="weight decay as implemented in Adam optimizer (L2 norm)")
     parser.add_argument(
-        "--trueWD", type=float, default=0.0,
+        "--trueWD", type=float, default=None,
         help="TRUE weight decay in Adam")
     ## SGD
     parser.add_argument(

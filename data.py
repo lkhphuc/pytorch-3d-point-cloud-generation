@@ -120,7 +120,7 @@ class PointCloud2dDataset(Dataset):
         # Convert to Tensor
         images = torch.from_numpy(images).permute((0,3,1,2))
         depthGT = torch.from_numpy(depthGT).permute((0,3,1,2))
-        maskGT = torch.from_numpy(maskGT).permut((0,3,1,2))
+        maskGT = torch.from_numpy(maskGT).permute((0,3,1,2))
 
         return {
             "inputImage": images,

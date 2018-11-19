@@ -85,6 +85,11 @@ class Trainer_stg1:
 
                 # Update weights
                 loss.backward()
+                # True Weight decay
+                if self.cfg.trueWD is not None:
+                    for group in optimizer.param_groups:
+                        for param in group['params']:
+                            param.data = param.data.add(-self.cfg.trueWD * group['lr'], param.data)
                 optimizer.step()
 
             if scheduler: scheduler.step()
@@ -250,6 +255,11 @@ class Trainer_stg2:
 
                 # Update weights
                 loss.backward()
+                # True Weight decay
+                if self.cfg.trueWD is not None:
+                    for group in optimizer.param_groups:
+                        for param in group['params']:
+                            param.data = param.data.add(-self.cfg.trueWD * group['lr'], param.data)
                 optimizer.step()
 
             if scheduler: scheduler.step()

@@ -40,8 +40,9 @@ def build_structure_generator(cfg):
 def make_optimizer(cfg, model):
     params = model.parameters()
     if cfg.optim.lower() in 'adam':
-        if cfg.trueWD: return optim.Adam(params, cfg.lr, weight_decay=0)
-        else : return optim.Adam(params, cfg.lr, weight_decay=cfg.wd)
+        if cfg.trueWD is not None:
+            return optim.Adam(params, cfg.lr, weight_decay=0)
+        else: return optim.Adam(params, cfg.lr, weight_decay=cfg.wd)
     elif cfg.optim.lower() in 'sgd':
         return optim.SGD(params, cfg.lr)
 
