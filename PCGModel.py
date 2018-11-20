@@ -47,6 +47,7 @@ class Encoder(nn.Module):
         x = self.fc1(x.view(-1, 4096))
         x = self.fc2(x)
         x = self.fc3(x)
+
         return x
 
 class Decoder(nn.Module):
@@ -78,6 +79,7 @@ class Decoder(nn.Module):
         x = self.pixel_conv(x)
         XYZ, maskLogit = torch.split(
             x, [self.outViewN * 3, self.outViewN], dim=1)
+
         return XYZ, maskLogit
 
 class Structure_Generator(nn.Module):
@@ -90,19 +92,22 @@ class Structure_Generator(nn.Module):
 
         if not self.encoder:
             self.encoder = Encoder()
+
         if not self.decoder:
             self.decoder = Decoder(outViewN=8)
 
     def forward(self, x):
         latent = self.encoder(x)
         XYZ, maskLogit = self.decoder(latent)
+
         return XYZ, maskLogit
 
 
 # TESTING
+
 if __name__ == '__main__':
     from options import get_arguments
-    CFG = get_arguments()
+    cfg = get_arguments()
     encoder = Encoder()
-    decoder = Decoder(outViewN=CFG.outViewN)
-    model = Structure_Generator(CFG)
+    decoder = Decoder(outViewN=cfg.outViewN)
+    model = Structure_Generator(cfg)

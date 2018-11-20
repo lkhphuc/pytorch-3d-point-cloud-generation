@@ -1,8 +1,9 @@
 """Pytorch Dataset and Dataloader for 3D PCG"""
-import scipy.io
 import numpy as np
+import scipy.io
 import torch
 from torch.utils.data import DataLoader, Dataset
+
 
 class PointCloud2dDataset(Dataset):
     """2D dataset rendered from ShapeNet for Point Cloud Generation
@@ -43,7 +44,9 @@ class PointCloud2dDataset(Dataset):
             trans = raw_data["trans"]
             mask = depth != 0
             depth[~mask] = self.cfg.renderDepth
-            return {"image_in": image_in, "depth": depth, "mask": mask, "trans": trans}
+
+            return {"image_in": image_in, "depth": depth,
+                    "mask": mask, "trans": trans}
 
         if self.loadFixedOut:
             raw_data = scipy.io.loadmat(
@@ -51,6 +54,7 @@ class PointCloud2dDataset(Dataset):
             depth = raw_data["Z"]
             mask = depth != 0
             depth[~mask] = self.cfg.renderDepth
+
             return {"image_in": image_in, "depth": depth, "mask": mask}
 
     def collate_fn(self, batch):
@@ -115,7 +119,8 @@ class PointCloud2dDataset(Dataset):
 
         images = batch_n["image_in"][modelIdx, angleIdx]
         depthGT = np.transpose(batch_n["depth"][modelIdx], axes=[0, 2, 3, 1])
-        maskGT = np.transpose(batch_n["mask"][modelIdx], axes=[0, 2, 3, 1]).astype(np.int)
+        maskGT = np.transpose(batch_n["mask"][modelIdx], axes=[0, 2, 3, 1])\
+                   .astype(np.int)
 
         # Convert to Tensor
         images = torch.from_numpy(images).permute((0,3,1,2))
@@ -140,4 +145,3 @@ if __name__ == "__main__":
     ds_novel = PointCloud2dDataset(CFG, loadNovel=True)
     dl_novel = DataLoader(ds_novel, batch_size=CFG.chunkSize,
                           shuffle=False, collate_fn=ds_novel.collate_fn)
-

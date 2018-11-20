@@ -1,7 +1,9 @@
 """Parsing arguments from the commandline"""
 import argparse
+
 import numpy as np
 import torch
+
 
 def parse_arguments():
     """Parse input arguments"""
@@ -143,6 +145,7 @@ def get_arguments():
     print(f"Device: {cfg.device}")
     print(f"lr:{cfg.lr:.2e} (decay:{cfg.lrDecay}, step size:{cfg.lrStep})")
     print(f"depth loss weight:{cfg.lambdaDepth}")
+
     if cfg.phase.lower() in "stg2":
         print(f"Stg1 experiment: {cfg.loadPath}")
         print(f"Stg1 model: {cfg.load}")

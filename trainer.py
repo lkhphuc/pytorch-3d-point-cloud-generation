@@ -2,8 +2,9 @@ import pandas as pd
 import torch
 import torch.nn.functional as F
 
-from utils import make_grid
 import transform
+from utils import make_grid
+
 
 class Trainer_stg1:
     def __init__(self, cfg, data_loaders, criterions, on_after_epoch=None):
@@ -35,9 +36,11 @@ class Trainer_stg1:
 
             if self.on_after_epoch is not None:
                 images = self._make_images_board(model, self.data_loaders[1])
-                self.on_after_epoch(model, pd.DataFrame(self.history), images, epoch)
+                self.on_after_epoch(model, pd.DataFrame(self.history),
+                                    images, epoch)
 
         print("======= TRAINING DONE =======")
+
         return pd.DataFrame(self.history)
 
     def _train_on_epoch(self, model, optimizer, scheduler):
@@ -65,8 +68,9 @@ class Trainer_stg1:
                 XGT.repeat([self.cfg.outViewN, 1, 1]),
                 YGT.repeat([self.cfg.outViewN, 1, 1])], dim=0)
             # Shape: [1, 2V, H, W] (Expand to new dim)
-            XYGT = torch.cat(
-                [XYGT[None, :] for i in range(depthGT.size(0))], dim=0).to(self.cfg.device)
+            XYGT = torch.cat([XYGT[None, :]
+                              for i in range(depthGT.size(0))], dim=0)\
+                        .to(self.cfg.device)
 
             optimizer.zero_grad()
 
@@ -78,18 +82,20 @@ class Trainer_stg1:
 
                 # ------ Compute loss ------
                 loss_XYZ = self.l1(XY, XYGT)
-                loss_XYZ += self.l1(
-                    depth.masked_select(mask), depthGT.masked_select(mask))
+                loss_XYZ += self.l1(depth.masked_select(mask),
+                                    depthGT.masked_select(mask))
                 loss_mask = self.sigmoid_bce(maskLogit, maskGT)
                 loss = loss_mask + self.cfg.lambdaDepth * loss_XYZ
 
                 # Update weights
                 loss.backward()
                 # True Weight decay
+
                 if self.cfg.trueWD is not None:
                     for group in optimizer.param_groups:
                         for param in group['params']:
-                            param.data = param.data.add(-self.cfg.trueWD * group['lr'], param.data)
+                            param.data = param.data.add(
+                                -self.cfg.trueWD * group['lr'], param.data)
                 optimizer.step()
 
             if scheduler: scheduler.step()
@@ -133,8 +139,9 @@ class Trainer_stg1:
                 XGT.repeat([self.cfg.outViewN, 1, 1]),
                 YGT.repeat([self.cfg.outViewN, 1, 1])], dim=0)
             # Shape: [1, 2V, H, W] (Expand to new dim)
-            XYGT = torch.cat(
-                [XYGT[None, :] for i in range(depthGT.size(0))], dim=0).to(self.cfg.device)
+            XYGT = torch.cat([XYGT[None, :]
+                              for i in range(depthGT.size(0))], dim=0)\
+                        .to(self.cfg.device)
 
             with torch.set_grad_enabled(False):
                 XYZ, maskLogit = model(input_images)
@@ -214,9 +221,11 @@ class Trainer_stg2:
 
             if self.on_after_epoch is not None:
                 images = self._make_images_board(model, self.data_loaders[1])
-                self.on_after_epoch(model, pd.DataFrame(self.history), images, epoch)
+                self.on_after_epoch(model, pd.DataFrame(self.history),
+                                    images, epoch)
 
         print("======= TRAINING DONE =======")
+
         return pd.DataFrame(self.history)
 
     def _train_on_epoch(self, model, optimizer, scheduler):
@@ -256,10 +265,12 @@ class Trainer_stg2:
                 # Update weights
                 loss.backward()
                 # True Weight decay
+
                 if self.cfg.trueWD is not None:
                     for group in optimizer.param_groups:
                         for param in group['params']:
-                            param.data = param.data.add(-self.cfg.trueWD * group['lr'], param.data)
+                            param.data = param.data.add(
+                                -self.cfg.trueWD * group['lr'], param.data)
                 optimizer.step()
 
             if scheduler: scheduler.step()

@@ -1,17 +1,16 @@
-import os
 import logging
+import os
 
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
+from torch.utils.data import DataLoader
 
 import data
 import options
 import utils
 from trainer import Trainer_stg2
-
 
 if __name__ == "__main__":
 
@@ -46,6 +45,7 @@ if __name__ == "__main__":
     print("Create logger")
     logger = logging.getLogger("logger")
     logger.setLevel(logging.DEBUG)
+
     if not logger.hasHandlers():
         logger.addHandler(logging.FileHandler(filename=f"logs/{EXPERIMENT}.log"))
 

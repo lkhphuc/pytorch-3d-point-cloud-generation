@@ -4,12 +4,12 @@ import os
 import numpy as np
 import pandas as pd
 import torch
-from torch.utils.data import DataLoader
 from torch import optim
 from torch.optim import lr_scheduler
-import torchvision
+from torch.utils.data import DataLoader
 
 import data
+import torchvision
 from PCGModel import Structure_Generator
 
 
@@ -24,21 +24,26 @@ def projection(Vs, Vt):
     idx = torch.to_int32(torch.argmin(dist, axis=1))
     proj = torch.gather_nd(Vt_rep, torch.stack([torch.range(VsN), idx], axis=1))
     minDist = torch.gather_nd(dist, torch.stack([torch.range(VsN), idx], axis=1))
+
     return proj, minDist
 
 def build_structure_generator(cfg):
     model = Structure_Generator()
+
     if cfg.load is not None:
         LOAD_PATH = f"models/{cfg.loadPath}_{cfg.experiment}"
         print(cfg.load)
+
         if cfg.load == 0:
             model.load_state_dict(torch.load(f"{LOAD_PATH}/best.pth"))
         else: model.load_state_dict(
             torch.load(f"{LOAD_PATH}/{cfg.load}.pth"))
+
     return model
 
 def make_optimizer(cfg, model):
     params = model.parameters()
+
     if cfg.optim.lower() in 'adam':
         if cfg.trueWD is not None:
             return optim.Adam(params, cfg.lr, weight_decay=0)
@@ -147,4 +152,3 @@ def write_on_board_images_stg2(writer, images, epoch):
 
 def make_grid(t):
     return torchvision.utils.make_grid(t, normalize=True)
-
