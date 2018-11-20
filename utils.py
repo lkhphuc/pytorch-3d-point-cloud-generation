@@ -138,9 +138,9 @@ def write_on_board_images_stg1(writer, images, epoch):
     writer.add_image('RGB', images['RGB'], epoch)
     writer.add_image('depth/GT', images['depthGT'], epoch)
     writer.add_image('depth/pred', images['depth'], epoch)
-    writer.add_image('depth/pred_mask', images['depth_mask'], epoch)
     writer.add_image('mask/GT', images['maskGT'], epoch)
     writer.add_image('mask/pred', images['mask'], epoch)
+    writer.add_image('depth*mask', images['depth_mask'], epoch)
 
 def write_on_board_images_stg2(writer, images, epoch):
     writer.add_image('RGB', images['RGB'], epoch)

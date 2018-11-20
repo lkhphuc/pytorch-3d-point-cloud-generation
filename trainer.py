@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 import torch
 import torch.nn.functional as F
@@ -182,14 +183,13 @@ class Trainer_stg1:
             XY = XYZ[:, :self.cfg.outViewN * 2, :, :]
             depth = XYZ[:, self.cfg.outViewN * 2:self.cfg.outViewN * 3, :,  :]
             mask = (maskLogit > 0).byte()
-            depth_mask = depth.masked_fill(1-mask, 0.0)
 
         return {'RGB': make_grid(input_images),
-                'depth': make_grid(1-depth[:, 0:1, :, :]),
-                'depth_mask': make_grid(1-depth_mask[:, 0:1, :, :]),
-                'depthGT': make_grid(1-depthGT[:, 0:1, :, :]),
-                'mask': make_grid(torch.sigmoid(maskLogit[:, 0:1,:, :])),
-                'maskGT': make_grid(maskGT[:, 0:1, :, :]),
+                'depth': make_grid(1-depth[:16, 0:1, :, :]),
+                'depth_mask': make_grid((1-depth)*mask[:16, 0:1, :, :]),
+                'depthGT': make_grid(1-depthGT[:16, 0:1, :, :]),
+                'mask': make_grid(torch.sigmoid(maskLogit[:16, 0:1,:, :])),
+                'maskGT': make_grid(maskGT[:16, 0:1, :, :]),
                 }
 
     def findLR(self, model, optimizer, writer,
@@ -431,11 +431,11 @@ class Trainer_stg2:
 
         return {'RGB': make_grid(input_images),
                 'depth': make_grid(
-                    ((1 - newDepth) * (collision==1).float())[:, 0, 0:1, :, :]),
-                'depthGT': make_grid(1-depthGT[:, 0, 0:1, :, :]),
+                    ((1 - newDepth) * (collision==1).float())[:16, 0, 0:1, :, :]),
+                'depthGT': make_grid(1-depthGT[:16, 0, 0:1, :, :]),
                 'mask': make_grid(
-                    torch.sigmoid(maskLogit[:, 0:1,:, :])),
+                    torch.sigmoid(maskLogit[:16, 0:1,:, :])),
                 'mask_rendered': make_grid(
-                    torch.sigmoid(newMaskLogit[:, 0, 0:1,:, :])),
-                'maskGT': make_grid(maskGT[:, 0, 0:1, :, :]),
+                    torch.sigmoid(newMaskLogit[:16, 0, 0:1,:, :])),
+                'maskGT': make_grid(maskGT[:16, 0, 0:1, :, :]),
                 }
