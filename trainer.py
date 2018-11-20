@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import pandas as pd
 import torch
 import torch.nn.functional as F
@@ -190,6 +191,80 @@ class Trainer_stg1:
                 'mask': make_grid(torch.sigmoid(maskLogit[:, 0:1,:, :])),
                 'maskGT': make_grid(maskGT[:, 0:1, :, :]),
                 }
+
+    def findLR(self, model, optimizer, writer,
+               start_lr=-7, end_lr=1, num_iters=20):
+        model.train()
+
+        data_loader = self.data_loaders[0]
+
+        lrs = []
+        losses_XYZ = []
+        losses_mask = []
+        losses = []
+
+        for i in range(num_iters):
+            # Update LR
+            lr = start_lr + (end_lr - start_lr)  * (i / num_iters)
+            for group in optimizer.param_groups:
+                group['lr'] = lr
+
+            batch = next(iter(data_loader))
+            input_images = batch['inputImage'].float().to(self.cfg.device)
+            depthGT = batch['depthGT'].float().to(self.cfg.device)
+            maskGT = batch['maskGT'].float().to(self.cfg.device)
+
+            # ------ define ground truth------
+            # Shape: [H,W]
+            XGT, YGT = torch.meshgrid([
+                torch.arange(self.cfg.outH),
+                torch.arange(self.cfg.outW)])
+            XGT, YGT = XGT.float(), YGT.float()
+            # Shape [V,H,W]
+            XYGT = torch.cat([
+                XGT.repeat([self.cfg.outViewN, 1, 1]),
+                YGT.repeat([self.cfg.outViewN, 1, 1])], dim=0)
+            # Shape: [1, 2V, H, W] (Expand to new dim)
+            XYGT = torch.cat([XYGT[None, :]
+                              for i in range(depthGT.size(0))], dim=0)\
+                        .to(self.cfg.device)
+
+            optimizer.zero_grad()
+
+            with torch.set_grad_enabled(True):
+                XYZ, maskLogit = model(input_images)
+                XY = XYZ[:, :self.cfg.outViewN * 2, :, :]
+                depth = XYZ[:, self.cfg.outViewN * 2:self.cfg.outViewN * 3, :,  :]
+                mask = (maskLogit > 0).byte()
+
+                # ------ Compute loss ------
+                loss_XYZ = self.l1(XY, XYGT)
+                loss_XYZ += self.l1(depth.masked_select(mask),
+                                    depthGT.masked_select(mask))
+                loss_mask = self.sigmoid_bce(maskLogit, maskGT)
+                loss = loss_mask + self.cfg.lambdaDepth * loss_XYZ
+
+                # Update weights
+                loss.backward()
+                # True Weight decay
+
+                if self.cfg.trueWD is not None:
+                    for group in optimizer.param_groups:
+                        for param in group['params']:
+                            param.data = param.data.add(
+                                -self.cfg.trueWD * group['lr'], param.data)
+                optimizer.step()
+
+            lrs.append(lr)
+            losses_XYZ.append(loss_XYZ.item())
+            losses_mask.append(loss_mask.item())
+            losses.append(loss.item())
+
+        fig, ax = plt.subplots()
+        ax.plot(lrs, losses)
+        ax.set_xlabel('learning rate')
+        ax.set_ylabel('loss')
+        writer.add_figure('findLR', fig)
 
 class Trainer_stg2:
     def __init__(self, cfg, data_loaders, criterions, on_after_epoch=None):
