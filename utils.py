@@ -44,12 +44,25 @@ def build_structure_generator(cfg):
 def make_optimizer(cfg, model):
     params = model.parameters()
 
-    if cfg.optim.lower() in 'adam':
-        if cfg.trueWD is not None:
-            return optim.Adam(params, cfg.lr, weight_decay=0)
-        else: return optim.Adam(params, cfg.lr, weight_decay=cfg.wd)
-    elif cfg.optim.lower() in 'sgd':
-        return optim.SGD(params, cfg.lr)
+    if cfg.trueWD is not None:
+        statement = "Use true (decouple) weight decay "
+        if cfg.optim.lower() in 'adam':
+            statement += "with Adam optimizer (AdamW)"
+            opt = optim.Adam(params, cfg.lr, weight_decay=0)
+        elif cfg.optim.lower() in 'sgd':
+            statement += "with SGD optimizer (SGDW)"
+            opt =optim.SGD(params, cfg.lr)
+    else:
+        statement = "Use default weight decay "
+        if cfg.optim.lower() in 'adam':
+            statement += "with Adam optimizer (Adam)"
+            opt = optim.Adam(params, cfg.lr, weight_decay=cfg.wd)
+        elif cfg.optim.lower() in 'sgd':
+            statement += "with SGD optimizer (SGD)"
+            opt =optim.SGD(params, cfg.lr, weight_decay=cfg.wd)
+    print(statement)
+
+    return opt
 
 def make_lr_scheduler(cfg, optimizer):
     if not cfg.lrSched: return None
