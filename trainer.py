@@ -345,7 +345,7 @@ class Trainer_stg2:
 
         return {'RGB': make_grid(input_images),
                 'depth': make_grid(
-                    ((1 - newDepth) * collision==1)[:, 0, 0:1, :, :]),
+                    ((1 - newDepth) * (collision==1).float())[:, 0, 0:1, :, :]),
                 'depthGT': make_grid(1-depthGT[:, 0, 0:1, :, :]),
                 'mask': make_grid(
                     torch.sigmoid(maskLogit[:, 0:1,:, :])),
