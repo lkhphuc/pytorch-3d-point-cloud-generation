@@ -21,7 +21,7 @@ if __name__ == "__main__":
     print("Setting configurations...")
     cfg = options.get_arguments()
 
-    EXPERIMENT = f"{cfg.model}_{cfg.experiment}"
+    EXPERIMENT = f"{cfg.model}_{cfg.experiment}_findLR"
 
     print("Create Dataloader")
     dataloaders = utils.make_data_fixed(cfg)
@@ -36,12 +36,11 @@ if __name__ == "__main__":
 
     print("Create optimizer and scheduler")
     optimizer = utils.make_optimizer(cfg, model)
-    scheduler = utils.make_lr_scheduler(cfg, optimizer)
 
     print("Create tensorboard logger")
     writer = SummaryWriter(comment="_"+EXPERIMENT)
 
     trainer = Trainer_stg1(cfg, dataloaders, criterions)
-    trainer.findLR(model, optimizer, writer, start_lr=1e-7, end_lr=10, num_iters=100)
+    trainer.findLR(model, optimizer, writer, start_lr=cfg.startLR, end_lr=cfg.endLR, num_iters=cfg.itersLR)
 
     writer.close()

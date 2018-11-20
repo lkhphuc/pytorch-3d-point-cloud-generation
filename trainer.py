@@ -193,19 +193,16 @@ class Trainer_stg1:
                 }
 
     def findLR(self, model, optimizer, writer,
-               start_lr=-7, end_lr=1, num_iters=20):
-        model.train()
+               start_lr=1e-7, end_lr=10, num_iters=50):
 
+        model.train()
         data_loader = self.data_loaders[0]
 
-        lrs = []
-        losses_XYZ = []
-        losses_mask = []
+        lrs = np.logspace(np.log10(start_lr), np.log10(end_lr), num_iters)
         losses = []
 
-        for i in range(num_iters):
+        for lr in lrs:
             # Update LR
-            lr = start_lr + (end_lr - start_lr)  * (i / num_iters)
             for group in optimizer.param_groups:
                 group['lr'] = lr
 
@@ -255,15 +252,13 @@ class Trainer_stg1:
                                 -self.cfg.trueWD * group['lr'], param.data)
                 optimizer.step()
 
-            lrs.append(lr)
-            losses_XYZ.append(loss_XYZ.item())
-            losses_mask.append(loss_mask.item())
             losses.append(loss.item())
 
         fig, ax = plt.subplots()
         ax.plot(lrs, losses)
         ax.set_xlabel('learning rate')
         ax.set_ylabel('loss')
+        ax.set_xscale('log')
         writer.add_figure('findLR', fig)
 
 class Trainer_stg2:

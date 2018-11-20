@@ -28,6 +28,7 @@ def parse_arguments():
     parser.add_argument(
         "--phase", type=str, default="stg1",
         help="stg1, stg2, eval")
+    # For stage 2
     parser.add_argument(
         "--loadPath", type=str, default=None,
         help="path to trained stage 1 model to finetune stage 2")
@@ -39,34 +40,34 @@ def parse_arguments():
         "--startEpoch", type=int, default=0,
         help="start training from epoch")
     parser.add_argument(
-        "--endEpoch", type=int, default=10000,
+        "--endEpoch", type=int, default=1000,
         help="stop training at epoch")
 
     parser.add_argument(
         "--chunkSize", type=int, default=100,
         help="Number of unique CAD models in each batch")
     parser.add_argument(
-        "--batchSize", type=int, default=20,
+        "--batchSize", type=int, default=100,
         help="number of unique images from chunkSize CADs models")
 
     # Optimizer
     parser.add_argument(
-        "--optim", type=str, default='adam',
+        "--optim", type=str, default='sgd',
         help="optimizer to use")
     parser.add_argument(
         "--lr", type=float, default=1e-4,
         help="base learning rate (AE)")
-    ## Adam 
     parser.add_argument(
         "--wd", type=float, default=0.0,
         help="weight decay as implemented in Adam optimizer (L2 norm)")
     parser.add_argument(
+        "--lambdaDepth", type=float, default=1.0,
+        help="loss weight factor (depth)")
+    ## Adam 
+    parser.add_argument(
         "--trueWD", type=float, default=None,
         help="TRUE weight decay in Adam")
     ## SGD
-    parser.add_argument(
-        "--lambdaDepth", type=float, default=1.0,
-        help="loss weight factor (depth)")
 
     # LR scheduler
     parser.add_argument(
@@ -84,8 +85,17 @@ def parse_arguments():
         "--gpu", type=int, default=0,
         help="which GPU to use")
 
+    # For LR Finder only
+    parser.add_argument(
+        "--startLR", type=float, default=1e-7,
+        help="start range of lr in LR Finder")
+    parser.add_argument(
+        "--endLR", type=float, default=10,
+        help="end range of lr in LR Finder")
+    parser.add_argument(
+        "--itersLR", type=float, default=10,
+        help="Number of iterations to explore LR")
     # Model related
-    parser.add_argument("--arch", default=None)
     parser.add_argument(
         "--novelN", type=int, default=5,
         help="number of novel views simultaneously")
@@ -136,15 +146,16 @@ def get_arguments():
     cfg.fuseTrans = torch.from_numpy(
         np.load(f"{cfg.path}/trans_fuse{cfg.outViewN}.npy")).to(cfg.device)
 
-    print(f"{cfg.model}_{cfg.experiment}")
+    print(f"EXPERIMENT: {cfg.model}_{cfg.experiment}")
     print("------------------------------------------")
     print(f"batch size:{cfg.batchSize}, category:{cfg.category}")
     print(f"size:{cfg.inH}x{cfg.inW}(in), {cfg.outH}x{cfg.outW}(out), {cfg.H}x{cfg.W}(pred)")
     print(f"viewN:{cfg.outViewN}(out), upscale:{cfg.upscale}, novelN:{cfg.novelN}")
     print("------------------------------------------")
     print(f"Device: {cfg.device}")
-    print(f"lr:{cfg.lr:.2e} (decay:{cfg.lrDecay}, step size:{cfg.lrStep})")
-    print(f"depth loss weight:{cfg.lambdaDepth}")
+    print(f"lr:{cfg.lr:.2e}, depth_loss weight:{cfg.lambdaDepth}")
+    if cfg.lrSched is not None:
+        print(f"Scheduler: {cfg.lrSched}, decay:{cfg.lrDecay}, step size:{cfg.lrStep})")
 
     if cfg.phase.lower() in "stg2":
         print(f"Stg1 experiment: {cfg.loadPath}")
