@@ -2,6 +2,8 @@
 runs/
 # Model output
 models/
+# Logs
+logs/
 # Data symlinks
 data/
 !data/trans_fuse8.npy
