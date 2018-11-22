@@ -7,14 +7,15 @@ import torch.nn.functional as F
 
 def conv2d_block(in_c, out_c):
     return nn.Sequential(
-        nn.Conv2d(in_c, out_c, 3, 2, True),
+        nn.Conv2d(in_c, out_c, kernel_size=3, stride=2, padding=1),
         nn.BatchNorm2d(out_c),
         nn.ReLU(),
     )
 
 def deconv2d_block(in_c, out_c):
     return nn.Sequential(
-        nn.ConvTranspose2d(in_c, out_c, 3, 2, padding=1, output_padding=1, bias=True),
+        nn.ConvTranspose2d(in_c, out_c, kernel_size=3, stride=2,
+                           padding=1, output_padding=1, bias=True),
         nn.BatchNorm2d(out_c),
         nn.ReLU(),
     )
@@ -85,16 +86,14 @@ class Decoder(nn.Module):
 class Structure_Generator(nn.Module):
     """Structure generator components in PCG"""
 
-    def __init__(self, encoder=None, decoder=None):
+    def __init__(self, encoder=None, decoder=None, outViewN=8):
         super(Structure_Generator, self).__init__()
-        self.encoder = encoder
-        self.decoder = decoder
 
-        if not self.encoder:
-            self.encoder = Encoder()
+        if encoder: self.encoder = encoder
+        else: self.encoder = Encoder()
 
-        if not self.decoder:
-            self.decoder = Decoder(outViewN=8)
+        if decoder: self.decoder = decoder
+        else: self.decoder = Decoder(outViewN=outViewN)
 
     def forward(self, x):
         latent = self.encoder(x)
