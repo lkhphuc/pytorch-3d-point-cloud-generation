@@ -28,7 +28,7 @@ def projection(Vs, Vt):
     return proj, minDist
 
 def build_structure_generator(cfg):
-    model = Structure_Generator()
+    model = Structure_Generator(outViewN=cfg.outViewN)
 
     if cfg.load is not None:
         LOAD_PATH = f"models/{cfg.loadPath}_{cfg.experiment}"
@@ -66,23 +66,31 @@ def make_optimizer(cfg, model):
 
 def make_lr_scheduler(cfg, optimizer):
     if not cfg.lrSched: return None
-    elif cfg.lrSched.lower() in 'steplr':
-        return lr_scheduler.StepLR(optimizer, cfg.lrStep, cfg.lrDecay)
+    elif cfg.lrSched.lower() in 'step':
+        statement = f'Using StepLR with gamma: {cfg.lrGamma} and step size: {cfg.lrStep}'
+        sched = lr_scheduler.StepLR(optimizer, cfg.lrStep, cfg.lrGamma)
     elif cfg.lrSched.lower() in 'exponential':
-        return lr_scheduler.ExponentialLR(optimizer, cfg.lrDecay)
+        statement = f'Using ExponentialLR with gamma: {cfg.lrGamma}'
+        sched = lr_scheduler.ExponentialLR(optimizer, cfg.lrGamma)
+    elif cfg.lrSched.lower() in 'cosine':
+        statement = f'Using CosineAnnealingLR with T_max: {cfg.TMax}'
+        sched = lr_scheduler.CosineAnnealingLR(optimizer, cfg.TMax, cfg.etaMin)
+    print(statement)
+
+    return sched
 
 def make_data_fixed(cfg):
     ds_tr = data.PointCloud2dDataset(
         cfg, loadNovel=False, loadFixedOut=True, loadTest=False)
     dl_tr = DataLoader(
         ds_tr, batch_size=cfg.chunkSize, shuffle=True,
-        drop_last=True, collate_fn=ds_tr.collate_fn_fixed)
+        drop_last=True, collate_fn=ds_tr.collate_fn_fixed, num_workers=4)
 
     ds_test = data.PointCloud2dDataset(
         cfg, loadNovel=False, loadFixedOut=True, loadTest=True)
     dl_test = DataLoader(
         ds_test, batch_size=cfg.chunkSize, shuffle=False,
-        drop_last=True, collate_fn=ds_test.collate_fn_fixed)
+        drop_last=True, collate_fn=ds_test.collate_fn_fixed, num_workers=4)
 
     return [dl_tr, dl_test]
 
@@ -162,6 +170,10 @@ def write_on_board_images_stg2(writer, images, epoch):
     writer.add_image('mask/GT', images['maskGT'], epoch)
     writer.add_image('mask/pred', images['mask'], epoch)
     writer.add_image('mask/rendered', images['mask_rendered'], epoch)
+
+def write_on_board_lr(writer, lr, epoch):
+    writer.add_scalar('learning rate', lr, epoch)
+
 
 def make_grid(t):
     return torchvision.utils.make_grid(t, normalize=True)

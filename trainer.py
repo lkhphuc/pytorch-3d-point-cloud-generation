@@ -22,6 +22,12 @@ class Trainer_stg1:
 
         for epoch in range(self.cfg.startEpoch, self.cfg.endEpoch):
             print(f"Epoch {epoch}:")
+
+            lr = None
+            if scheduler is not None:
+                scheduler.step()
+                lr = scheduler.get_lr()[0]
+
             train_epoch_loss = self._train_on_epoch(model, optimizer, scheduler)
             val_epoch_loss = self._val_on_epoch(model)
 
@@ -39,7 +45,7 @@ class Trainer_stg1:
             if self.on_after_epoch is not None:
                 images = self._make_images_board(model, self.data_loaders[1])
                 self.on_after_epoch(model, pd.DataFrame(self.history),
-                                    images, epoch)
+                                    images, lr, epoch)
 
         print("======= TRAINING DONE =======")
 
@@ -92,11 +98,10 @@ class Trainer_stg1:
                 # Update weights
                 loss.backward()
                 # True Weight decay
-
                 if self.cfg.trueWD is not None:
                     for group in optimizer.param_groups:
                         for param in group['params']:
-                            param.data = param.data.add(
+                            param.data.add_(
                                 -self.cfg.trueWD * group['lr'], param.data)
                 optimizer.step()
 
@@ -182,14 +187,14 @@ class Trainer_stg1:
             XYZ, maskLogit = model(input_images)
             XY = XYZ[:, :self.cfg.outViewN * 2, :, :]
             depth = XYZ[:, self.cfg.outViewN * 2:self.cfg.outViewN * 3, :,  :]
-            mask = (maskLogit > 0).byte()
+            mask = (maskLogit > 0).float()
 
-        return {'RGB': make_grid(input_images),
-                'depth': make_grid(1-depth[:16, 0:1, :, :]),
-                'depth_mask': make_grid((1-depth)*mask[:16, 0:1, :, :]),
-                'depthGT': make_grid(1-depthGT[:16, 0:1, :, :]),
-                'mask': make_grid(torch.sigmoid(maskLogit[:16, 0:1,:, :])),
-                'maskGT': make_grid(maskGT[:16, 0:1, :, :]),
+        return {'RGB': make_grid(input_images[:64]),
+                'depth': make_grid(1-depth[:64, 0:1, :, :]),
+                'depth_mask': make_grid(((1-depth)*mask)[:64, 0:1, :, :]),
+                'depthGT': make_grid(1-depthGT[:64, 0:1, :, :]),
+                'mask': make_grid(torch.sigmoid(maskLogit[:64, 0:1,:, :])),
+                'maskGT': make_grid(maskGT[:64, 0:1, :, :]),
                 }
 
     def findLR(self, model, optimizer, writer,
@@ -275,7 +280,8 @@ class Trainer_stg2:
 
         for epoch in range(self.cfg.startEpoch, self.cfg.endEpoch):
             print(f"Epoch {epoch}:")
-            train_epoch_loss = self._train_on_epoch(model, optimizer, scheduler)
+            if scheduler: scheduler.step()
+            train_epoch_loss = self._train_on_epoch(model, optimizer)
             val_epoch_loss = self._val_on_epoch(model)
 
             hist = {
@@ -342,8 +348,6 @@ class Trainer_stg2:
                             param.data = param.data.add(
                                 -self.cfg.trueWD * group['lr'], param.data)
                 optimizer.step()
-
-            if scheduler: scheduler.step()
 
             running_loss_depth += loss_depth.item() * input_images.size(0)
             running_loss_mask += loss_mask.item() * input_images.size(0)
@@ -424,7 +428,7 @@ class Trainer_stg2:
                 self.cfg, XYZid, ML, renderTrans)  # [B,N,1,H,W]
 
 
-        return {'RGB': make_grid(input_images),
+        return {'RGB': make_grid(input_images[:16]),
                 'depth': make_grid(
                     ((1 - newDepth) * (collision==1).float())[:16, 0, 0:1, :, :]),
                 'depthGT': make_grid(1-depthGT[:16, 0, 0:1, :, :]),

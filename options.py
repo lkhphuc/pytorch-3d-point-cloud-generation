@@ -72,15 +72,15 @@ def parse_arguments():
     # LR scheduler
     parser.add_argument(
         "--lrSched", type=str, default=None,
-        help="What learning rate scheduler to use"
-    )
+        help="What learning rate scheduler to use")
     parser.add_argument(
-        "--lrDecay", type=float, default=1.0,
-        help="learning rate decay multiplier (gamma)")
+        "--lrGamma", type=float, default=0.1,
+        help="Multiplicative factor of learning rate decay")
     ## StepLR
     parser.add_argument(
         "--lrStep", type=int, default=1,
-        help="how many epochs until update lr")
+        help="how many epochs to step lr scheduler")
+
     parser.add_argument(
         "--gpu", type=int, default=0,
         help="which GPU to use")
@@ -95,6 +95,7 @@ def parse_arguments():
     parser.add_argument(
         "--itersLR", type=float, default=10,
         help="Number of iterations to explore LR")
+
     # Model related
     parser.add_argument(
         "--novelN", type=int, default=5,

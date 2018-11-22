@@ -52,11 +52,12 @@ if __name__ == "__main__":
     print("Create tensorboard logger")
     writer = SummaryWriter(comment="_"+EXPERIMENT)
 
-    def on_after_epoch(model, df_hist, images, epoch):
+    def on_after_epoch(model, df_hist, images, lr, epoch):
         utils.save_best_model(MODEL_PATH, model, df_hist)
         utils.log_hist(logger, df_hist)
         utils.write_on_board_losses_stg1(writer, df_hist)
         utils.write_on_board_images_stg1(writer, images, epoch)
+        if lr is not None: utils.write_on_board_lr(writer, lr, epoch)
 
     trainer = Trainer_stg1(cfg, dataloaders, criterions, on_after_epoch)
 
