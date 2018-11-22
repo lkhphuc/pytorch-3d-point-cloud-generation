@@ -5,7 +5,7 @@ import logging
 import pandas as pd
 import torch
 from torch import optim
-from troch import nn
+from torch import nn
 from torch.optim import lr_scheduler
 from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
@@ -64,7 +64,7 @@ def make_data_fixed(cfg):
 
     print(f"Load fixed (stg1) data for category: {cfg.category}")
     print(f"batch size:{cfg.batchSize}, chunk size: {cfg.chunkSize}")
-    return [dl_tr, dl_test]
+    return dl_tr, dl_test
 
 def unpack_batch_fixed(batch, device):
     input_images = batch['inputImage'].float().to(device)
@@ -72,14 +72,6 @@ def unpack_batch_fixed(batch, device):
     maskGT = batch['maskGT'].float().to(device)
 
     return input_images, depthGT, maskGT
-
-def unpack_batch_novel(batch, device):
-    input_images = batch['inputImage'].float().to(device)
-    renderTrans = batch['targetTrans'].float().to(device)
-    depthGT = batch['depthGT'].float().to(device)
-    maskGT = batch['maskGT'].float().to(device)
-
-    return input_images, renderTrans, depthGT, maskGT
 
 def make_data_novel(cfg):
     ds_tr = data.PointCloud2dDataset(
@@ -96,7 +88,15 @@ def make_data_novel(cfg):
 
     print(f"Load novel (stg2) data for category: {cfg.category}")
     print(f"batch size:{cfg.batchSize}, chunk size: {cfg.chunkSize}")
-    return [dl_tr, dl_test]
+    return dl_tr, dl_test
+
+def unpack_batch_novel(batch, device):
+    input_images = batch['inputImage'].float().to(device)
+    renderTrans = batch['targetTrans'].float().to(device)
+    depthGT = batch['depthGT'].float().to(device)
+    maskGT = batch['maskGT'].float().to(device)
+
+    return input_images, renderTrans, depthGT, maskGT
 
 def define_losses():
     l1_loss = nn.L1Loss()
@@ -132,7 +132,7 @@ def make_optimizer(cfg, model):
         elif cfg.optim.lower() in 'sgd':
             statement += "with SGD optimizer (SGDW)"
             opt = optim.SGD(params, cfg.lr)
-        statement += f"Learning rate: {cfg.lr}, weight decay: {cfg.trueWD}"
+        statement += f"\nLearning rate: {cfg.lr:.2e}, weight decay: {cfg.trueWD:.2e}"
     else:
         statement = "Use default (coupled with L2 regularization) weight decay "
         if cfg.optim.lower() in 'adam':
@@ -141,7 +141,7 @@ def make_optimizer(cfg, model):
         elif cfg.optim.lower() in 'sgd':
             statement += "with SGD optimizer (SGD)"
             opt = optim.SGD(params, cfg.lr, weight_decay=cfg.wd)
-        statement += f"Learning rate: {cfg.lr}, weight decay: {cfg.wd}"
+        statement += f"\nLearning rate: {cfg.lr:.2e}, weight decay: {cfg.wd:.2e}"
 
     print(statement)
     return opt
@@ -150,10 +150,10 @@ def make_lr_scheduler(cfg, optimizer):
     if not cfg.lrSched:
         return None
     elif cfg.lrSched.lower() in 'step':
-        statement = f'Using StepLR with gamma: {cfg.lrGamma} and step size: {cfg.lrStep}'
+        statement = f'Using StepLR with gamma: {cfg.lrGamma:.2e} and step size: {cfg.lrStep}'
         sched = lr_scheduler.StepLR(optimizer, cfg.lrStep, cfg.lrGamma)
     elif cfg.lrSched.lower() in 'exponential':
-        statement = f'Using ExponentialLR with gamma: {cfg.lrGamma}'
+        statement = f'Using ExponentialLR with gamma: {cfg.lrGamma:.2e}'
         sched = lr_scheduler.ExponentialLR(optimizer, cfg.lrGamma)
     elif cfg.lrSched.lower() in 'cosine':
         statement = f'Using CosineAnnealingLR with T_max: {cfg.TMax}'

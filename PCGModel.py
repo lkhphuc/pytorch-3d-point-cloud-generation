@@ -20,7 +20,7 @@ def conv2d_block(in_c, out_c):
 
 def deconv2d_block(in_c, out_c):
     return nn.Sequential(
-        nn.Conv2d(in_c, out_c, 1, stride=1, padding=0),
+        nn.Conv2d(in_c, out_c, 3, stride=1, padding=1),
         nn.BatchNorm2d(out_c),
         nn.ReLU(),
     )
@@ -100,7 +100,7 @@ class Decoder(nn.Module):
         x = self.deconv3(F.interpolate(x, scale_factor=2))
         x = self.deconv4(F.interpolate(x, scale_factor=2))
         x = self.deconv5(F.interpolate(x, scale_factor=2))
-        x = self.pixel_conv(x) + self.pixel_bias
+        x = self.pixel_conv(x) + self.pixel_bias.to(x.device)
         XYZ, maskLogit = torch.split(
             x, [self.outViewN * 3, self.outViewN], dim=1)
 
