@@ -1,20 +1,22 @@
-"""Utilities for 2D-3D conversion and building models"""
+"""Utilities for 2D-3D conversion, training and building models"""
 import os
+import logging
 
-import numpy as np
 import pandas as pd
 import torch
 from torch import optim
+from troch import nn
 from torch.optim import lr_scheduler
 from torch.utils.data import DataLoader
+from tensorboardX import SummaryWriter
 
 import data
-import torchvision
+from torchvision import utils as vutils
 from PCGModel import Structure_Generator
 
 
-# compute projection from source to target
 def projection(Vs, Vt):
+    '''compute projection from source to target'''
     VsN = Vs.size(0)
     VtN = Vt.size(0)
     Vt_rep = torch.repeat(Vt[None, :, :], [VsN, 1, 1])  # [VsN,VtN,3]
@@ -27,57 +29,25 @@ def projection(Vs, Vt):
 
     return proj, minDist
 
-def build_structure_generator(cfg):
-    model = Structure_Generator(outViewN=cfg.outViewN)
+def make_folder(PATH):
+    if not os.path.exists(PATH):
+        os.makedirs(PATH)
 
-    if cfg.load is not None:
-        LOAD_PATH = f"models/{cfg.loadPath}_{cfg.experiment}"
-        print(cfg.load)
+def make_logger(PATH):
+    logger = logging.getLogger("logger")
+    logger.setLevel(logging.DEBUG)
+    if not logger.hasHandlers():
+        logger.addHandler(logging.FileHandler(filename=f"{PATH}.log"))
+    
+    print("Create logger")
+    return logger
 
-        if cfg.load == 0:
-            model.load_state_dict(torch.load(f"{LOAD_PATH}/best.pth"))
-        else: model.load_state_dict(
-            torch.load(f"{LOAD_PATH}/{cfg.load}.pth"))
+def make_summary_writer(EXPERIMENT):
+    writer = SummaryWriter(comment="_"+EXPERIMENT)
 
-    return model
+    print("Create tensorboard logger")
+    return writer
 
-def make_optimizer(cfg, model):
-    params = model.parameters()
-
-    if cfg.trueWD is not None:
-        statement = "Use true (decouple) weight decay "
-        if cfg.optim.lower() in 'adam':
-            statement += "with Adam optimizer (AdamW)"
-            opt = optim.Adam(params, cfg.lr, weight_decay=0)
-        elif cfg.optim.lower() in 'sgd':
-            statement += "with SGD optimizer (SGDW)"
-            opt =optim.SGD(params, cfg.lr)
-    else:
-        statement = "Use default weight decay "
-        if cfg.optim.lower() in 'adam':
-            statement += "with Adam optimizer (Adam)"
-            opt = optim.Adam(params, cfg.lr, weight_decay=cfg.wd)
-        elif cfg.optim.lower() in 'sgd':
-            statement += "with SGD optimizer (SGD)"
-            opt =optim.SGD(params, cfg.lr, weight_decay=cfg.wd)
-    print(statement)
-
-    return opt
-
-def make_lr_scheduler(cfg, optimizer):
-    if not cfg.lrSched: return None
-    elif cfg.lrSched.lower() in 'step':
-        statement = f'Using StepLR with gamma: {cfg.lrGamma} and step size: {cfg.lrStep}'
-        sched = lr_scheduler.StepLR(optimizer, cfg.lrStep, cfg.lrGamma)
-    elif cfg.lrSched.lower() in 'exponential':
-        statement = f'Using ExponentialLR with gamma: {cfg.lrGamma}'
-        sched = lr_scheduler.ExponentialLR(optimizer, cfg.lrGamma)
-    elif cfg.lrSched.lower() in 'cosine':
-        statement = f'Using CosineAnnealingLR with T_max: {cfg.TMax}'
-        sched = lr_scheduler.CosineAnnealingLR(optimizer, cfg.TMax, cfg.etaMin)
-    print(statement)
-
-    return sched
 
 def make_data_fixed(cfg):
     ds_tr = data.PointCloud2dDataset(
@@ -92,7 +62,24 @@ def make_data_fixed(cfg):
         ds_test, batch_size=cfg.chunkSize, shuffle=False,
         drop_last=True, collate_fn=ds_test.collate_fn_fixed, num_workers=4)
 
+    print(f"Load fixed (stg1) data for category: {cfg.category}")
+    print(f"batch size:{cfg.batchSize}, chunk size: {cfg.chunkSize}")
     return [dl_tr, dl_test]
+
+def unpack_batch_fixed(batch, device):
+    input_images = batch['inputImage'].float().to(device)
+    depthGT = batch['depthGT'].float().to(device)
+    maskGT = batch['maskGT'].float().to(device)
+
+    return input_images, depthGT, maskGT
+
+def unpack_batch_novel(batch, device):
+    input_images = batch['inputImage'].float().to(device)
+    renderTrans = batch['targetTrans'].float().to(device)
+    depthGT = batch['depthGT'].float().to(device)
+    maskGT = batch['maskGT'].float().to(device)
+
+    return input_images, renderTrans, depthGT, maskGT
 
 def make_data_novel(cfg):
     ds_tr = data.PointCloud2dDataset(
@@ -107,10 +94,75 @@ def make_data_novel(cfg):
         ds_test, batch_size=cfg.chunkSize, shuffle=False,
         drop_last=True, collate_fn=ds_test.collate_fn)
 
+    print(f"Load novel (stg2) data for category: {cfg.category}")
+    print(f"batch size:{cfg.batchSize}, chunk size: {cfg.chunkSize}")
     return [dl_tr, dl_test]
 
+def define_losses():
+    l1_loss = nn.L1Loss()
+    bce_loss = nn.BCEWithLogitsLoss()
+    return l1_loss, bce_loss
 
-# logging
+def build_structure_generator(cfg):
+    model = Structure_Generator(outViewN=cfg.outViewN, outW=cfg.outW, outH=cfg.outH, renderDepth=cfg.renderDepth)
+    statement = "Build Structure Generator"
+
+    if cfg.load is not None:
+        LOAD_PATH = f"models/{cfg.loadPath}_{cfg.experiment}"
+
+        if cfg.load == 0:
+            model.load_state_dict(torch.load(f"{LOAD_PATH}/best.pth"))
+            statement += f"and load best weights from {LOAD_PATH}"
+        else:
+            model.load_state_dict(
+                torch.load(f"{LOAD_PATH}/{cfg.load}.pth"))
+            statement += f"and load weights {cfg.load} from {LOAD_PATH}"
+
+    print(statement)
+    return model
+
+def make_optimizer(cfg, model):
+    params = model.parameters()
+
+    if cfg.trueWD is not None:
+        statement = "Use true (decouple with L2 regularization) weight decay "
+        if cfg.optim.lower() in 'adam':
+            statement += "with Adam optimizer (AdamW)"
+            opt = optim.Adam(params, cfg.lr, weight_decay=0)
+        elif cfg.optim.lower() in 'sgd':
+            statement += "with SGD optimizer (SGDW)"
+            opt = optim.SGD(params, cfg.lr)
+        statement += f"Learning rate: {cfg.lr}, weight decay: {cfg.trueWD}"
+    else:
+        statement = "Use default (coupled with L2 regularization) weight decay "
+        if cfg.optim.lower() in 'adam':
+            statement += "with Adam optimizer (Adam)"
+            opt = optim.Adam(params, cfg.lr, weight_decay=cfg.wd)
+        elif cfg.optim.lower() in 'sgd':
+            statement += "with SGD optimizer (SGD)"
+            opt = optim.SGD(params, cfg.lr, weight_decay=cfg.wd)
+        statement += f"Learning rate: {cfg.lr}, weight decay: {cfg.wd}"
+
+    print(statement)
+    return opt
+
+def make_lr_scheduler(cfg, optimizer):
+    if not cfg.lrSched:
+        return None
+    elif cfg.lrSched.lower() in 'step':
+        statement = f'Using StepLR with gamma: {cfg.lrGamma} and step size: {cfg.lrStep}'
+        sched = lr_scheduler.StepLR(optimizer, cfg.lrStep, cfg.lrGamma)
+    elif cfg.lrSched.lower() in 'exponential':
+        statement = f'Using ExponentialLR with gamma: {cfg.lrGamma}'
+        sched = lr_scheduler.ExponentialLR(optimizer, cfg.lrGamma)
+    elif cfg.lrSched.lower() in 'cosine':
+        statement = f'Using CosineAnnealingLR with T_max: {cfg.TMax}'
+        sched = lr_scheduler.CosineAnnealingLR(optimizer, cfg.TMax, cfg.etaMin)
+
+    print(statement)
+    return sched
+
+
 def save_best_model(model_path, model, df_hist):
     if df_hist['val_loss'].tail(1).iloc[0] <= df_hist['val_loss'].min():
         torch.save(model.state_dict(), f"{model_path}/best.pth")
@@ -174,6 +226,5 @@ def write_on_board_images_stg2(writer, images, epoch):
 def write_on_board_lr(writer, lr, epoch):
     writer.add_scalar('learning rate', lr, epoch)
 
-
 def make_grid(t):
-    return torchvision.utils.make_grid(t, normalize=True)
+    return vutils.make_grid(t, normalize=True)

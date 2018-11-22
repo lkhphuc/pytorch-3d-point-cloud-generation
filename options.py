@@ -122,7 +122,6 @@ def parse_arguments():
     return parser.parse_args()
 
 def get_arguments():
-    """Parse and and add constant arguments"""
     cfg = parse_arguments()
     # these stay fixed
     cfg.sampleN = 100
@@ -149,14 +148,10 @@ def get_arguments():
 
     print(f"EXPERIMENT: {cfg.model}_{cfg.experiment}")
     print("------------------------------------------")
-    print(f"batch size:{cfg.batchSize}, category:{cfg.category}")
-    print(f"size:{cfg.inH}x{cfg.inW}(in), {cfg.outH}x{cfg.outW}(out), {cfg.H}x{cfg.W}(pred)")
+    print(f"input:{cfg.inH}x{cfg.inW}, output:{cfg.outH}x{cfg.outW}, pred:{cfg.H}x{cfg.W}")
     print(f"viewN:{cfg.outViewN}(out), upscale:{cfg.upscale}, novelN:{cfg.novelN}")
+    print(f"Device: {cfg.device}, depth_loss weight:{cfg.lambdaDepth}")
     print("------------------------------------------")
-    print(f"Device: {cfg.device}")
-    print(f"lr:{cfg.lr:.2e}, depth_loss weight:{cfg.lambdaDepth}")
-    if cfg.lrSched is not None:
-        print(f"Scheduler: {cfg.lrSched}, decay:{cfg.lrDecay}, step size:{cfg.lrStep})")
 
     if cfg.phase.lower() in "stg2":
         print(f"Stg1 experiment: {cfg.loadPath}")
