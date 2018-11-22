@@ -71,7 +71,7 @@ class Trainer_stg1:
                 torch.arange(self.cfg.outH),
                 torch.arange(self.cfg.outW)])
             XGT, YGT = XGT.float(), YGT.float()
-            # Shape [V,H,W]
+            # Shape [2V,H,W]
             XYGT = torch.cat([
                 XGT.repeat([self.cfg.outViewN, 1, 1]),
                 YGT.repeat([self.cfg.outViewN, 1, 1])], dim=0)
