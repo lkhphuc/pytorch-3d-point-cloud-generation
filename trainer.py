@@ -7,7 +7,7 @@ import torch.nn.functional as F
 import transform
 import utils
 
-class Trainer_stg1:
+class TrainerStage1:
     '''Train loop and evaluation for stage 1 Structure generator'''
 
     def __init__(self, cfg, data_loaders, criterions, on_after_epoch=None):
@@ -24,10 +24,10 @@ class Trainer_stg1:
         for epoch in range(self.cfg.startEpoch, self.cfg.endEpoch):
             print(f"Epoch {epoch}:")
 
-            LR = None
+            lr = None
             if scheduler is not None:
                 scheduler.step()
-                LR = scheduler.get_lr()[0]
+                lr = scheduler.get_lr()[0]
 
             train_epoch_loss = self._train_on_epoch(model, optimizer)
             val_epoch_loss = self._val_on_epoch(model)
@@ -44,9 +44,9 @@ class Trainer_stg1:
             self.history.append(hist)
 
             if self.on_after_epoch is not None:
-                images = self._make_images_board( model, self.data_loaders[1])
+                images = self._make_images_board(model, self.data_loaders[1])
                 self.on_after_epoch(model, pd.DataFrame(self.history),
-                                    images, LR, epoch)
+                                    images, lr, epoch)
 
         print("======= TRAINING DONE =======")
         return pd.DataFrame(self.history)
@@ -157,12 +157,12 @@ class Trainer_stg1:
                 "epoch_loss_mask": epoch_loss_mask,
                 "epoch_loss": epoch_loss, }
 
-    def _make_images_board(self, model, dataloader):
+    def _make_images_board(self, model):
 
         model.eval()
         num_imgs = 64
 
-        batch = next(iter(dataloader))
+        batch = next(iter(self.data_loaders[1]))
         input_images, depthGT, maskGT = utils.unpack_batch_fixed(batch, self.cfg.device)
 
         with torch.set_grad_enabled(False):
@@ -187,7 +187,6 @@ class Trainer_stg1:
 
         model.train()
 
-        data_loader = self.data_loaders[0]
         lrs = np.logspace(np.log10(start_lr), np.log10(end_lr), num_iters)
         losses = []
 
@@ -196,7 +195,7 @@ class Trainer_stg1:
             for group in optimizer.param_groups:
                 group['lr'] = lr
 
-            batch = next(iter(data_loader))
+            batch = next(iter(self.data_loaders[0]))
             input_images, depthGT, maskGT = utils.unpack_batch_fixed(batch, self.cfg.device)
 
             # ------ define ground truth------
@@ -243,7 +242,7 @@ class Trainer_stg1:
         ax.set_xscale('log')
         writer.add_figure('findLR', fig)
 
-class Trainer_stg2:
+class TrainerStage2:
     '''Train loop and evaluation for stage 2 with pseudo-renderer'''
 
     def __init__(self, cfg, data_loaders, criterions, on_after_epoch=None):
@@ -280,7 +279,7 @@ class Trainer_stg2:
             self.history.append(hist)
 
             if self.on_after_epoch is not None:
-                images = self._make_images_board(model, self.data_loaders[1])
+                images = self._make_images_board(model)
                 self.on_after_epoch(model, pd.DataFrame(self.history),
                                     images, LR, epoch)
 
@@ -384,12 +383,12 @@ class Trainer_stg2:
                 "epoch_loss_mask": epoch_loss_mask,
                 "epoch_loss": epoch_loss, }
 
-    def _make_images_board(self, model, dataloader):
+    def _make_images_board(self, model):
 
         model.eval()
         num_imgs = 64
 
-        batch = next(iter(dataloader))
+        batch = next(iter(self.data_loaders[1]))
         input_images, renderTrans, depthGT, maskGT = utils.unpack_batch_novel(batch, self.cfg.device)
 
         with torch.set_grad_enabled(False):
@@ -420,7 +419,6 @@ class Trainer_stg2:
 
         model.train()
 
-        data_loader = self.data_loaders[0]
         lrs = np.logspace(np.log10(start_lr), np.log10(end_lr), num_iters)
         losses = []
 
@@ -429,7 +427,7 @@ class Trainer_stg2:
             for group in optimizer.param_groups:
                 group['lr'] = lr
 
-            batch = next(iter(data_loader))
+            batch = next(iter(self.data_loaders[0]))
             input_images, depthGT, maskGT = utils.unpack_batch_novel(batch, self.cfg.device)
 
             # ------ define ground truth------

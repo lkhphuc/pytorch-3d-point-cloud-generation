@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 import data
 import options
 import utils
-from trainer import Trainer_stg2
+from trainer import TrainerStage2
 
 if __name__ == "__main__":
 
@@ -58,7 +58,7 @@ if __name__ == "__main__":
         utils.write_on_board_losses_stg2(writer, df_hist)
         utils.write_on_board_images_stg2(writer, images, epoch)
 
-    trainer = Trainer_stg2(cfg, dataloaders, criterions, on_after_epoch)
+    trainer = TrainerStage2(cfg, dataloaders, criterions, on_after_epoch)
 
     hist = trainer.train(model, optimizer, scheduler)
     hist.to_csv(f"logs/{EXPERIMENT}.csv", index=False)

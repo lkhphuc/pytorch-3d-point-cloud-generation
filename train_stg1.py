@@ -1,6 +1,6 @@
 import options
 import utils
-from trainer import Trainer_stg1
+from trainer import TrainerStage1
 
 if __name__ == "__main__":
 
@@ -34,7 +34,7 @@ if __name__ == "__main__":
         utils.write_on_board_images_stg1(writer, images, epoch)
         if lr is not None: utils.write_on_board_lr(writer, lr, epoch)
 
-    trainer = Trainer_stg1(cfg, dataloaders, criterions, on_after_epoch)
+    trainer = TrainerStage1(cfg, dataloaders, criterions, on_after_epoch)
 
     hist = trainer.train(model, optimizer, scheduler)
     hist.to_csv(f"{LOG_PATH}.csv", index=False)
