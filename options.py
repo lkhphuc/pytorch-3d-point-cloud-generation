@@ -33,7 +33,7 @@ def parse_arguments():
         "--loadPath", type=str, default=None,
         help="path to trained stage 1 model to finetune stage 2")
     parser.add_argument(
-        "--load", type=int, default=None,
+        "--loadEpoch", type=int, default=None,
         help="load stage 1 trained model to finetune stage 2")
 
     parser.add_argument(
@@ -42,6 +42,10 @@ def parse_arguments():
     parser.add_argument(
         "--endEpoch", type=int, default=1000,
         help="stop training at epoch")
+    parser.add_argument(
+        "--saveEpoch", type=int, default=None,
+        help="checkpoint model every --saveEpoch, None: best model only"
+    )
 
     parser.add_argument(
         "--chunkSize", type=int, default=100,
@@ -152,9 +156,5 @@ def get_arguments():
     print(f"viewN:{cfg.outViewN}(out), upscale:{cfg.upscale}, novelN:{cfg.novelN}")
     print(f"Device: {cfg.device}, depth_loss weight:{cfg.lambdaDepth}")
     print("------------------------------------------")
-
-    if cfg.phase.lower() in "stg2":
-        print(f"Stg1 experiment: {cfg.loadPath}")
-        print(f"Stg1 model: {cfg.load}")
 
     return cfg

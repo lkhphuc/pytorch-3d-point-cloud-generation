@@ -107,16 +107,16 @@ def build_structure_generator(cfg):
     model = Structure_Generator(outViewN=cfg.outViewN, outW=cfg.outW, outH=cfg.outH, renderDepth=cfg.renderDepth)
     statement = "Build Structure Generator"
 
-    if cfg.load is not None:
-        LOAD_PATH = f"models/{cfg.loadPath}_{cfg.experiment}"
+    if cfg.loadPath is not None:
+        LOAD_PATH = f"models/{cfg.loadPath}"
 
-        if cfg.load == 0:
+        if cfg.loadEpoch is None:
             model.load_state_dict(torch.load(f"{LOAD_PATH}/best.pth"))
             statement += f"and load best weights from {LOAD_PATH}"
         else:
             model.load_state_dict(
-                torch.load(f"{LOAD_PATH}/{cfg.load}.pth"))
-            statement += f"and load weights {cfg.load} from {LOAD_PATH}"
+                torch.load(f"{LOAD_PATH}/{cfg.loadEpoch}.pth"))
+            statement += f"and load weights epoch {cfg.loadEpoch} from {LOAD_PATH}"
 
     print(statement)
     return model
@@ -166,6 +166,11 @@ def make_lr_scheduler(cfg, optimizer):
 def save_best_model(model_path, model, df_hist):
     if df_hist['val_loss'].tail(1).iloc[0] <= df_hist['val_loss'].min():
         torch.save(model.state_dict(), f"{model_path}/best.pth")
+
+def checkpoint_model(model_path, model, epoch, saveEpoch):
+    if (epoch+1) % saveEpoch == 0:
+        torch.save(model.state_dict(), f"{model_path}/{epoch}.pth")
+
 
 def log_hist(logger, df_hist):
     last = df_hist.tail(1)
