@@ -4,7 +4,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-# build transformer (3D generator)
 def fuse3D(cfg, XYZ, maskLogit, fuseTrans):
     """Fuse multiple depth views into a 3D point cloud representation
     Args:
@@ -44,7 +43,6 @@ def fuse3D(cfg, XYZ, maskLogit, fuseTrans):
 
     return XYZid, ML
 
-# build transformer (render 2D depth)
 def render2D(cfg, XYZid, ML, renderTrans):  # [B,1,VHW]
     """Render 2D depth views from fused 3D point clouds
     Args:

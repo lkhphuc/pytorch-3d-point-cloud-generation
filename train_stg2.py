@@ -1,13 +1,3 @@
-import logging
-import os
-
-import numpy as np
-import torch
-import torch.nn as nn
-from tensorboardX import SummaryWriter
-from torch.utils.data import DataLoader
-
-import data
 import options
 import utils
 from trainer import TrainerStage2
@@ -18,49 +8,36 @@ if __name__ == "__main__":
     print("Train structure generator  with joint 2D optimization from novel viewpoints")
     print("=======================================================")
 
-    print("Setting configurations...")
     cfg = options.get_arguments()
 
     EXPERIMENT = f"{cfg.model}_{cfg.experiment}"
     MODEL_PATH = f"models/{EXPERIMENT}"
+    LOG_PATH = f"logs/{EXPERIMENT}"
 
-    if not os.path.exists(MODEL_PATH):
-        os.makedirs(MODEL_PATH)
+    utils.make_folder(MODEL_PATH)
+    utils.make_folder(LOG_PATH)
 
-    print("Create Dataloader")
+    criterions = utils.define_losses()
     dataloaders = utils.make_data_novel(cfg)
 
-    print("Define losses")
-    l1_loss = nn.L1Loss()
-    bce_loss = nn.BCEWithLogitsLoss()
-    criterions = [l1_loss, bce_loss]
-
-    print("Build Structure Generator")
     model = utils.build_structure_generator(cfg).to(cfg.device)
-
-    print("Create optimizer and scheduler")
     optimizer = utils.make_optimizer(cfg, model)
     scheduler = utils.make_lr_scheduler(cfg, optimizer)
 
-    print("Create logger")
-    logger = logging.getLogger("logger")
-    logger.setLevel(logging.DEBUG)
+    logger = utils.make_logger(LOG_PATH)
+    writer = utils.make_summary_writer(EXPERIMENT)
 
-    if not logger.hasHandlers():
-        logger.addHandler(logging.FileHandler(filename=f"logs/{EXPERIMENT}.log"))
-
-    print("Create tensorboard logger")
-    writer = SummaryWriter(comment="_"+EXPERIMENT)
-
-    def on_after_epoch(model, df_hist, images, epoch):
+    def on_after_epoch(model, df_hist, images, lr, epoch, saveEpoch):
         utils.save_best_model(MODEL_PATH, model, df_hist)
+        utils.checkpoint_model(MODEL_PATH, model, epoch, saveEpoch)
         utils.log_hist(logger, df_hist)
         utils.write_on_board_losses_stg2(writer, df_hist)
         utils.write_on_board_images_stg2(writer, images, epoch)
+        utils.write_on_board_lr(writer, lr, epoch)
 
-    trainer = TrainerStage2(cfg, dataloaders, criterions, on_after_epoch)
+    trainer = TrainerStage2(cfg, dataloaders, criterions, on_after_epoch) 
 
     hist = trainer.train(model, optimizer, scheduler)
-    hist.to_csv(f"logs/{EXPERIMENT}.csv", index=False)
 
+    hist.to_csv(f"{LOG_PATH}.csv", index=False)
     writer.close()

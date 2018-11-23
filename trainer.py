@@ -52,7 +52,6 @@ class TrainerStage1:
         return pd.DataFrame(self.history)
 
     def _train_on_epoch(self, model, optimizer):
-
         model.train()
 
         data_loader = self.data_loaders[0]
@@ -110,7 +109,6 @@ class TrainerStage1:
                 "epoch_loss": epoch_loss, }
 
     def _val_on_epoch(self, model):
-
         model.eval()
 
         data_loader = self.data_loaders[1]
@@ -156,9 +154,8 @@ class TrainerStage1:
                 "epoch_loss": epoch_loss, }
 
     def _make_images_board(self, model):
-
-        num_imgs = 64
         model.eval()
+        num_imgs = 64
 
         batch = next(iter(self.data_loaders[1]))
         input_images, depthGT, maskGT = utils.unpack_batch_fixed(batch, self.cfg.device)
@@ -182,24 +179,20 @@ class TrainerStage1:
 
     def findLR(self, model, optimizer, writer,
                start_lr=1e-7, end_lr=10, num_iters=50):
-
-        lrs = np.logspace(np.log10(start_lr), np.log10(end_lr), num_iters)
-        losses = []
-
         model.train()
+
+        losses = []
+        lrs = np.logspace(np.log10(start_lr), np.log10(end_lr), num_iters)
 
         for lr in lrs:
             # Update LR
-            for group in optimizer.param_groups:
-                group['lr'] = lr
+            for group in optimizer.param_groups: group['lr'] = lr
 
             batch = next(iter(self.data_loaders[0]))
             input_images, depthGT, maskGT = utils.unpack_batch_fixed(batch, self.cfg.device)
-
             # ------ define ground truth------
-            XGT, YGT = torch.meshgrid([
-                torch.arange(self.cfg.outH), # [H,W]
-                torch.arange(self.cfg.outW)]) # [H,W]
+            XGT, YGT = torch.meshgrid([torch.arange(self.cfg.outH), # [H,W]
+                                       torch.arange(self.cfg.outW)]) # [H,W]
             XGT, YGT = XGT.float(), YGT.float()
             XYGT = torch.cat([
                 XGT.repeat([self.cfg.outViewN, 1, 1]), 
@@ -239,6 +232,7 @@ class TrainerStage1:
         ax.set_xscale('log')
         writer.add_figure('findLR', fig)
 
+
 class TrainerStage2:
     '''Train loop and evaluation for stage 2 with pseudo-renderer'''
 
@@ -277,8 +271,9 @@ class TrainerStage2:
 
             if self.on_after_epoch is not None:
                 images = self._make_images_board(model)
-                self.on_after_epoch(model, pd.DataFrame(self.history),
-                                    images, LR, epoch)
+                self.on_after_epoch(
+                    model, pd.DataFrame(self.history),
+                    images, LR, epoch, self.cfg.saveEpoch)
 
         print("======= TRAINING DONE =======")
         return pd.DataFrame(self.history)
@@ -298,14 +293,12 @@ class TrainerStage2:
                 optimizer.zero_grad()
 
                 XYZ, maskLogit = model(input_images)
-                mask = (maskLogit > 0).byte()
                 # ------ build transformer ------
                 fuseTrans = F.normalize(self.cfg.fuseTrans, p=2, dim=1)
                 XYZid, ML = transform.fuse3D(
                     self.cfg, XYZ, maskLogit, fuseTrans) # [B,3,VHW],[B,1,VHW]
                 newDepth, newMaskLogit, collision = transform.render2D(
                     self.cfg, XYZid, ML, renderTrans)  # [B,N,H,W,1]
-
                 # ------ Compute loss ------
                 loss_depth = self.l1(
                     newDepth.masked_select(collision==1),
@@ -338,7 +331,6 @@ class TrainerStage2:
                 "epoch_loss": epoch_loss, }
 
     def _val_on_epoch(self, model):
-
         model.eval()
 
         data_loader = self.data_loaders[1]
@@ -351,14 +343,12 @@ class TrainerStage2:
 
             with torch.set_grad_enabled(False):
                 XYZ, maskLogit = model(input_images)
-                mask = (maskLogit > 0).byte()
                 # ------ build transformer ------
                 fuseTrans = F.normalize(self.cfg.fuseTrans, p=2, dim=1)
                 XYZid, ML = transform.fuse3D(
                     self.cfg, XYZ, maskLogit, fuseTrans) # [B,3,VHW],[B,1,VHW]
                 newDepth, newMaskLogit, collision = transform.render2D(
                     self.cfg, XYZid, ML, renderTrans)  # [B,N,H,W,1]
-
                 # ------ Compute loss ------
                 loss_depth = self.l1(
                     newDepth.masked_select(collision==1),
@@ -381,7 +371,6 @@ class TrainerStage2:
                 "epoch_loss": epoch_loss, }
 
     def _make_images_board(self, model):
-
         model.eval()
         num_imgs = 64
 
@@ -390,7 +379,6 @@ class TrainerStage2:
 
         with torch.set_grad_enabled(False):
             XYZ, maskLogit = model(input_images)
-            mask = (maskLogit > 0).float()
             # ------ build transformer ------
             fuseTrans = F.normalize(self.cfg.fuseTrans, p=2, dim=1)
             XYZid, ML = transform.fuse3D(
@@ -425,32 +413,24 @@ class TrainerStage2:
                 group['lr'] = lr
 
             batch = next(iter(self.data_loaders[0]))
-            input_images, depthGT, maskGT = utils.unpack_batch_novel(batch, self.cfg.device)
-
-            # ------ define ground truth------
-            XGT, YGT = torch.meshgrid([
-                torch.arange(self.cfg.outH), # [H,W]
-                torch.arange(self.cfg.outW)]) # [H,W]
-            XGT, YGT = XGT.float(), YGT.float()
-            XYGT = torch.cat([
-                XGT.repeat([self.cfg.outViewN, 1, 1]), 
-                YGT.repeat([self.cfg.outViewN, 1, 1])], dim=0) #[2V,H,W]
-            XYGT = XYGT.expand([input_images.size(0), -1, -1, -1])\
-                       .to(self.cfg.device) # [B,2V,H,W] 
+            input_images, renderTrans, depthGT, maskGT = utils.unpack_batch_novel(batch, self.cfg.device)
 
             with torch.set_grad_enabled(True):
                 optimizer.zero_grad()
 
                 XYZ, maskLogit = model(input_images)
-                XY = XYZ[:, :self.cfg.outViewN * 2, :, :]
-                depth = XYZ[:, self.cfg.outViewN * 2:self.cfg.outViewN * 3, :,  :]
-                mask = (maskLogit > 0).byte()
+                # ------ build transformer ------
+                fuseTrans = F.normalize(self.cfg.fuseTrans, p=2, dim=1)
+                XYZid, ML = transform.fuse3D(
+                    self.cfg, XYZ, maskLogit, fuseTrans) # [B,3,VHW],[B,1,VHW]
+                newDepth, newMaskLogit, collision = transform.render2D(
+                    self.cfg, XYZid, ML, renderTrans)  # [B,N,H,W,1]
                 # ------ Compute loss ------
-                loss_XYZ = self.l1(XY, XYGT)
-                loss_XYZ += self.l1(depth.masked_select(mask),
-                                    depthGT.masked_select(mask))
-                loss_mask = self.sigmoid_bce(maskLogit, maskGT)
-                loss = loss_mask + self.cfg.lambdaDepth * loss_XYZ
+                loss_depth = self.l1(
+                    newDepth.masked_select(collision==1),
+                    depthGT.masked_select(collision==1))
+                loss_mask = self.sigmoid_bce(newMaskLogit, maskGT)
+                loss = loss_mask + self.cfg.lambdaDepth * loss_depth
 
                 # Update weights
                 loss.backward()
@@ -459,7 +439,8 @@ class TrainerStage2:
                     for group in optimizer.param_groups:
                         for param in group['params']:
                             param.data = param.data.add(
-                                -self.cfg.trueWD * group['lr'], param.data)
+                                -self.cfg.trueWD * group['lr'],
+                                param.data)
                 optimizer.step()
 
             losses.append(loss.item())

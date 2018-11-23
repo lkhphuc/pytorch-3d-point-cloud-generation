@@ -168,7 +168,7 @@ def save_best_model(model_path, model, df_hist):
         torch.save(model.state_dict(), f"{model_path}/best.pth")
 
 def checkpoint_model(model_path, model, epoch, saveEpoch):
-    if (epoch+1) % saveEpoch == 0:
+    if (saveEpoch is not None) and ((epoch+1) % saveEpoch == 0):
         torch.save(model.state_dict(), f"{model_path}/{epoch}.pth")
 
 
@@ -229,7 +229,7 @@ def write_on_board_images_stg2(writer, images, epoch):
     writer.add_image('mask/rendered', images['mask_rendered'], epoch)
 
 def write_on_board_lr(writer, lr, epoch):
-    writer.add_scalar('learning rate', lr, epoch)
+    if lr is not None: writer.add_scalar('learning rate', lr, epoch)
 
 def make_grid(t):
     return vutils.make_grid(t, normalize=True)

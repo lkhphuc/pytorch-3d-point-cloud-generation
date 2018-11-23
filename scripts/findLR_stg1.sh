@@ -27,8 +27,14 @@
 # 	--startLR 1e-7 --endLR 10 --itersLR 100 \
 # 	--gpu 0
 
-python findLR_stg1.py --model ORIG_STG1 --experiment adam_trueWD \
+# python findLR_stg1.py --model ORIG_STG1 --experiment adam_trueWD \
+# 	--chunkSize 100 --batchSize 100 \
+# 	--optim adam --trueWD 1e-4 \
+# 	--startLR 1e-7 --endLR 10 --itersLR 100 \
+# 	--gpu 1
+
+python findLR_stg1.py --model ORIG_STG1 --experiment sgd_trueWD \
 	--chunkSize 100 --batchSize 100 \
-	--optim adam --trueWD 1e-4 \
+	--optim sgd --trueWD 1e-4 \
 	--startLR 1e-7 --endLR 10 --itersLR 100 \
 	--gpu 1
