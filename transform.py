@@ -57,7 +57,7 @@ def render2D(cfg, XYZid, ML, renderTrans):  # [B,1,VHW]
     offsetDepth, offsetMaskLogit = 10.0, 1.0
 
     # target rigid transformation
-    q_target = renderTrans.reshape([cfg.batchSize * cfg.novelN, 4]).float() #[BN,4]
+    q_target = renderTrans.reshape([cfg.batchSize * cfg.novelN, 4]) #[BN,4]
     t_target = torch.Tensor([0, 0, -cfg.renderDepth]) \
                     .repeat([cfg.batchSize * cfg.novelN, 1]) \
                     .float().to(cfg.device) # [BN,3]

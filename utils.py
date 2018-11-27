@@ -8,11 +8,12 @@ from torch import optim
 from torch import nn
 from torch.optim import lr_scheduler
 from torch.utils.data import DataLoader
+from torchvision import utils as vutils
 from tensorboardX import SummaryWriter
 
 import data
-from torchvision import utils as vutils
 from PCGModel import Structure_Generator
+import custom_scheduler
 
 
 def projection(Vs, Vt):
@@ -54,13 +55,13 @@ def make_data_fixed(cfg):
         cfg, loadNovel=False, loadFixedOut=True, loadTest=False)
     dl_tr = DataLoader(
         ds_tr, batch_size=cfg.chunkSize, shuffle=True,
-        drop_last=True, collate_fn=ds_tr.collate_fn_fixed, num_workers=4)
+        drop_last=True, collate_fn=ds_tr.collate_fn_fixed, num_workers=2)
 
     ds_test = data.PointCloud2dDataset(
         cfg, loadNovel=False, loadFixedOut=True, loadTest=True)
     dl_test = DataLoader(
         ds_test, batch_size=cfg.chunkSize, shuffle=False,
-        drop_last=True, collate_fn=ds_test.collate_fn_fixed, num_workers=4)
+        drop_last=True, collate_fn=ds_test.collate_fn_fixed, num_workers=2)
 
     print(f"Load fixed (stg1) data for category: {cfg.category}")
     print(f"batch size:{cfg.batchSize}, chunk size: {cfg.chunkSize}")
@@ -78,13 +79,13 @@ def make_data_novel(cfg):
         cfg, loadNovel=True, loadFixedOut=False, loadTest=False)
     dl_tr = DataLoader(
         ds_tr, batch_size=cfg.chunkSize, shuffle=True,
-        drop_last=True, collate_fn=ds_tr.collate_fn)
+        drop_last=True, collate_fn=ds_tr.collate_fn, num_workers=2)
 
     ds_test = data.PointCloud2dDataset(
         cfg, loadNovel=True, loadFixedOut=False, loadTest=True)
     dl_test = DataLoader(
         ds_test, batch_size=cfg.chunkSize, shuffle=False,
-        drop_last=True, collate_fn=ds_test.collate_fn)
+        drop_last=True, collate_fn=ds_test.collate_fn, num_workers=2)
 
     print(f"Load novel (stg2) data for category: {cfg.category}")
     print(f"batch size:{cfg.batchSize}, chunk size: {cfg.chunkSize}")
@@ -130,8 +131,9 @@ def make_optimizer(cfg, model):
             statement += "with Adam optimizer (AdamW)"
             opt = optim.Adam(params, cfg.lr, weight_decay=0)
         elif cfg.optim.lower() in 'sgd':
-            statement += "with SGD optimizer (SGDW)"
-            opt = optim.SGD(params, cfg.lr)
+            if cfg.momentum is not None:
+                statement += "with SGD optimizer (SGDW), momentum: {cfg.momentum}"
+                opt = optim.SGD(params, cfg.lr, cfg.momentum)
         statement += f"\nLearning rate: {cfg.lr:.2e}, weight decay: {cfg.trueWD:.2e}"
     else:
         statement = "Use default (coupled with L2 regularization) weight decay "
@@ -139,8 +141,8 @@ def make_optimizer(cfg, model):
             statement += "with Adam optimizer (Adam)"
             opt = optim.Adam(params, cfg.lr, weight_decay=cfg.wd)
         elif cfg.optim.lower() in 'sgd':
-            statement += "with SGD optimizer (SGD)"
-            opt = optim.SGD(params, cfg.lr, weight_decay=cfg.wd)
+            statement += "with SGD optimizer (SGD), momentum: {cfg.momentum}"
+            opt = optim.SGD(params, cfg.lr, cfg.momentum, weight_decay=cfg.wd)
         statement += f"\nLearning rate: {cfg.lr:.2e}, weight decay: {cfg.wd:.2e}"
 
     print(statement)
@@ -149,15 +151,22 @@ def make_optimizer(cfg, model):
 def make_lr_scheduler(cfg, optimizer):
     if not cfg.lrSched:
         return None
-    elif cfg.lrSched.lower() in 'step':
-        statement = f'Using StepLR with gamma: {cfg.lrGamma:.2e} and step size: {cfg.lrStep}'
-        sched = lr_scheduler.StepLR(optimizer, cfg.lrStep, cfg.lrGamma)
-    elif cfg.lrSched.lower() in 'exponential':
-        statement = f'Using ExponentialLR with gamma: {cfg.lrGamma:.2e}'
+    elif cfg.lrSched.lower() in 'annealing':
         sched = lr_scheduler.ExponentialLR(optimizer, cfg.lrGamma)
-    elif cfg.lrSched.lower() in 'cosine':
-        statement = f'Using CosineAnnealingLR with T_max: {cfg.TMax}'
-        sched = lr_scheduler.CosineAnnealingLR(optimizer, cfg.TMax, cfg.etaMin)
+        statement = f"Exponential annealing learning rate \
+            with gamma:{cfg.lrGamma}"
+    elif cfg.lrSched.lower() in 'cyclical':
+        sched = custom_scheduler.CyclicLR(
+            optimizer, cfg.lrBase, cfg.lr,
+            cfg.lrStep, mode='exp_range', gamma=cfg.lrGamma)
+        statement = f"Exponential annealing + Cyclical learning rate ,\
+            with base_lr:{cfg.lrBase}, max_lr:{cfg.lr}, gamma: {cfg.lrGamma}"
+    elif cfg.lrSched.lower() in 'restart':
+        sched = custom_scheduler.CosineAnnealingWithRestartsLR(
+            optimizer, cfg.T_0, cfg.T_mult, cfg.lrBase)
+        statement = f"Cosine annealing + Restart learning rate\
+            with base_lr:{cfg.lrBase}, max_lr:{cfg.lr},\
+            T_0:{cfg.T_0}, T_mult:{cfg.T_mult}"
 
     print(statement)
     return sched
@@ -228,8 +237,9 @@ def write_on_board_images_stg2(writer, images, epoch):
     writer.add_image('mask/pred', images['mask'], epoch)
     writer.add_image('mask/rendered', images['mask_rendered'], epoch)
 
-def write_on_board_lr(writer, lr, epoch):
-    if lr is not None: writer.add_scalar('learning rate', lr, epoch)
+def write_on_board_lr(writer, lr, iteration):
+    for i in range(len(lr)):
+        writer.add_scalar(f"lr_{i}", lr[i], iteration)
 
 def make_grid(t):
     return vutils.make_grid(t, normalize=True)

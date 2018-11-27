@@ -3,6 +3,7 @@ import argparse
 
 import numpy as np
 import torch
+import torch.nn.functional as F
 
 
 def parse_arguments():
@@ -31,10 +32,10 @@ def parse_arguments():
     # For stage 2
     parser.add_argument(
         "--loadPath", type=str, default=None,
-        help="path to trained stage 1 model to finetune stage 2")
+        help="path to trained stage 1 model for finetune stage 2")
     parser.add_argument(
         "--loadEpoch", type=int, default=None,
-        help="load stage 1 trained model to finetune stage 2")
+        help="stage 1 trained model to load for finetune stage 2")
 
     parser.add_argument(
         "--startEpoch", type=int, default=0,
@@ -49,7 +50,7 @@ def parse_arguments():
 
     parser.add_argument(
         "--chunkSize", type=int, default=100,
-        help="Number of unique CAD models in each batch")
+        help="number of unique CAD models in each batch")
     parser.add_argument(
         "--batchSize", type=int, default=100,
         help="number of unique images from chunkSize CADs models")
@@ -57,33 +58,46 @@ def parse_arguments():
     # Optimizer
     parser.add_argument(
         "--optim", type=str, default='sgd',
-        help="optimizer to use")
+        choices=['adam', 'sgd'],
+        help="what optimizer to use (adam/sgd)")
     parser.add_argument(
         "--lr", type=float, default=1e-4,
-        help="base learning rate (AE)")
+        help="max learning rate")
     parser.add_argument(
         "--wd", type=float, default=0.0,
-        help="weight decay as implemented in Adam optimizer (L2 norm)")
-    parser.add_argument(
-        "--lambdaDepth", type=float, default=1.0,
-        help="loss weight factor (depth)")
-    ## Adam 
+        help="value for weight decay as implemented (L2 norm)")
     parser.add_argument(
         "--trueWD", type=float, default=None,
-        help="TRUE weight decay in Adam")
-    ## SGD
+        help="value for TRUE weight decay")
+    parser.add_argument(
+        "--momentum", type=float, default=None,
+        help="value formomentum, default=None")
 
     # LR scheduler
     parser.add_argument(
         "--lrSched", type=str, default=None,
+        choices=['annealing', 'cyclical', 'restart'],
         help="What learning rate scheduler to use")
     parser.add_argument(
-        "--lrGamma", type=float, default=0.1,
-        help="Multiplicative factor of learning rate decay")
-    ## StepLR
+        "--lrBase", type=float, default=0.3,
+        help="Base learning rate")
     parser.add_argument(
-        "--lrStep", type=int, default=1,
-        help="how many epochs to step lr scheduler")
+        "--lrStep", type=int, default=55,
+        help="Step size (#epoch) of lrSched, 2 steps == 1 cycle // 1 step -> restart")
+    parser.add_argument(
+        "--lrGamma", type=float, default=0.9,
+        help="Multiplicative factor of learning rate decay")
+    parser.add_argument(
+        "--lrRestart", type=str, default=None,
+        help="How many step to warm restart SGD/Adam's lr")
+    # For SGDR
+    parser.add_argument(
+        "--T_0", type=int, default=10,
+        help="number of epoch per cycle")
+    parser.add_argument(
+        "--T_mult", type=int, default=10,
+        help="multiplicative value for T0")
+
 
     parser.add_argument(
         "--gpu", type=int, default=0,
@@ -102,14 +116,17 @@ def parse_arguments():
 
     # Model related
     parser.add_argument(
+        "--lambdaDepth", type=float, default=1.0,
+        help="loss weight factor (depth)")
+    parser.add_argument(
+        "--std", type=float, default=0.1,
+        help="initialization standard deviation")
+    parser.add_argument(
         "--novelN", type=int, default=5,
         help="number of novel views simultaneously")
     parser.add_argument(
         "--outViewN", type=int, default=8,
         help="number of fixed views (output)")
-    parser.add_argument(
-        "--std", type=float, default=0.1,
-        help="initialization standard deviation")
     parser.add_argument(
         "--inSize", default="64x64",
         help="resolution of encoder input")
@@ -147,8 +164,10 @@ def get_arguments():
                                    [0, -cfg.outH, 0, cfg.outH / 2],
                                    [0, 0, -1, 0],
                                    [0, 0, 0, 1]]).float().to(cfg.device)
-    cfg.fuseTrans = torch.from_numpy(
-        np.load(f"{cfg.path}/trans_fuse{cfg.outViewN}.npy")).to(cfg.device)
+    cfg.fuseTrans = F.normalize(
+        torch.from_numpy(
+            np.load(f"{cfg.path}/trans_fuse{cfg.outViewN}.npy")),
+        p=2, dim=1).to(cfg.device)
 
     print(f"EXPERIMENT: {cfg.model}_{cfg.experiment}")
     print("------------------------------------------")

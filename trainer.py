@@ -7,33 +7,32 @@ import torch.nn.functional as F
 import transform
 import utils
 
+
 class TrainerStage1:
     '''Train loop and evaluation for stage 1 Structure generator'''
-
-    def __init__(self, cfg, data_loaders, criterions, on_after_epoch=None):
+    def __init__(self, cfg, data_loaders, criterions,
+                 on_after_epoch=None, on_after_batch=None):
         self.cfg = cfg
         self.data_loaders = data_loaders
         self.l1 = criterions[0]
         self.sigmoid_bce = criterions[1]
+        self.iteration = 0
+        self.epoch = 0
         self.history = []
         self.on_after_epoch = on_after_epoch
+        self.on_after_batch = on_after_batch
 
     def train(self, model, optimizer, scheduler):
         print("======= TRAINING START =======")
 
-        for epoch in range(self.cfg.startEpoch, self.cfg.endEpoch):
-            print(f"Epoch {epoch}:")
+        for self.epoch in range(self.cfg.startEpoch, self.cfg.endEpoch):
+            print(f"Epoch {self.epoch}:")
 
-            lr = None
-            if scheduler is not None:
-                scheduler.step()
-                lr = scheduler.get_lr()[0]
-
-            train_epoch_loss = self._train_on_epoch(model, optimizer)
+            train_epoch_loss = self._train_on_epoch(model, optimizer, scheduler)
             val_epoch_loss = self._val_on_epoch(model)
 
             hist = {
-                'epoch': epoch,
+                'epoch': self.epoch,
                 'train_loss_XYZ': train_epoch_loss["epoch_loss_XYZ"],
                 'train_loss_mask': train_epoch_loss["epoch_loss_mask"],
                 'train_loss': train_epoch_loss["epoch_loss"],
@@ -46,7 +45,7 @@ class TrainerStage1:
             if self.on_after_epoch is not None:
                 images = self._make_images_board(model)
                 self.on_after_epoch(model, pd.DataFrame(self.history),
-                                    images, lr, epoch)
+                                    images, self.epoch)
 
         print("======= TRAINING DONE =======")
         return pd.DataFrame(self.history)
@@ -59,7 +58,7 @@ class TrainerStage1:
         running_loss_mask = 0.0
         running_loss = 0.0
 
-        for batch in data_loader:
+        for self.iteration, batch in enumerate(data_loader, self.iteration):
             input_images, depthGT, maskGT = utils.unpack_batch_fixed(batch, self.cfg.device)
             # ------ define ground truth------
             XGT, YGT = torch.meshgrid([
@@ -94,6 +93,11 @@ class TrainerStage1:
                             param.data.add_(
                                 -self.cfg.trueWD * group['lr'], param.data)
                 optimizer.step()
+
+            if self.on_after_batch is not None:
+                if self.cfg.lrSched.lower() in "cyclical":
+                    self.on_after_batch(self.iteration)
+                else: self.on_after_batch(self.epoch)
 
             running_loss_XYZ += loss_XYZ.item() * input_images.size(0)
             running_loss_mask += loss_mask.item() * input_images.size(0)
@@ -235,31 +239,29 @@ class TrainerStage1:
 
 class TrainerStage2:
     '''Train loop and evaluation for stage 2 with pseudo-renderer'''
-
-    def __init__(self, cfg, data_loaders, criterions, on_after_epoch=None):
+    def __init__(self, cfg, data_loaders, criterions,
+                 on_after_epoch=None, on_after_batch=None):
         self.cfg = cfg
         self.data_loaders = data_loaders
         self.l1 = criterions[0]
         self.sigmoid_bce = criterions[1]
+        self.iteration = 0
+        self.epoch = 0
         self.history = []
         self.on_after_epoch = on_after_epoch
+        self.on_after_batch = on_after_batch
 
     def train(self, model, optimizer, scheduler):
         print("======= TRAINING START =======")
 
-        for epoch in range(self.cfg.startEpoch, self.cfg.endEpoch):
-            print(f"Epoch {epoch}:")
+        for self.epoch in range(self.cfg.startEpoch, self.cfg.endEpoch):
+            print(f"Epoch {self.epoch}:")
 
-            LR = None
-            if scheduler is not None:
-                scheduler.step()
-                LR = scheduler.get_lr()[0]
-
-            train_epoch_loss = self._train_on_epoch(model, optimizer)
+            train_epoch_loss = self._train_on_epoch(model, optimizer, scheduler)
             val_epoch_loss = self._val_on_epoch(model)
 
             hist = {
-                'epoch': epoch,
+                'epoch': self.epoch,
                 'train_loss_depth': train_epoch_loss["epoch_loss_depth"],
                 'train_loss_mask': train_epoch_loss["epoch_loss_mask"],
                 'train_loss': train_epoch_loss["epoch_loss"],
@@ -273,7 +275,7 @@ class TrainerStage2:
                 images = self._make_images_board(model)
                 self.on_after_epoch(
                     model, pd.DataFrame(self.history),
-                    images, LR, epoch, self.cfg.saveEpoch)
+                    images, self.epoch, self.cfg.saveEpoch)
 
         print("======= TRAINING DONE =======")
         return pd.DataFrame(self.history)
@@ -285,8 +287,9 @@ class TrainerStage2:
         running_loss_depth = 0.0
         running_loss_mask = 0.0
         running_loss = 0.0
+        fuseTrans = self.cfg.fuseTrans
 
-        for batch in data_loader:
+        for self.iteration, batch in enumerate(data_loader, self.iteration):
             input_images, renderTrans, depthGT, maskGT = utils.unpack_batch_novel(batch, self.cfg.device)
 
             with torch.set_grad_enabled(True):
@@ -294,7 +297,6 @@ class TrainerStage2:
 
                 XYZ, maskLogit = model(input_images)
                 # ------ build transformer ------
-                fuseTrans = F.normalize(self.cfg.fuseTrans, p=2, dim=1)
                 XYZid, ML = transform.fuse3D(
                     self.cfg, XYZ, maskLogit, fuseTrans) # [B,3,VHW],[B,1,VHW]
                 newDepth, newMaskLogit, collision = transform.render2D(
@@ -315,6 +317,11 @@ class TrainerStage2:
                             param.data = param.data.add(
                                 -self.cfg.trueWD * group['lr'], param.data)
                 optimizer.step()
+
+            if self.on_after_batch is not None:
+                if self.cfg.lrSched.lower() in "cyclical":
+                    self.on_after_batch(self.iteration)
+                else: self.on_after_batch(self.epoch)
 
             running_loss_depth += loss_depth.item() * input_images.size(0)
             running_loss_mask += loss_mask.item() * input_images.size(0)
@@ -337,6 +344,7 @@ class TrainerStage2:
         running_loss_depth = 0.0
         running_loss_mask = 0.0
         running_loss = 0.0
+        fuseTrans = self.cfg.fuseTrans
 
         for batch in data_loader:
             input_images, renderTrans, depthGT, maskGT = utils.unpack_batch_novel(batch, self.cfg.device)
@@ -344,7 +352,6 @@ class TrainerStage2:
             with torch.set_grad_enabled(False):
                 XYZ, maskLogit = model(input_images)
                 # ------ build transformer ------
-                fuseTrans = F.normalize(self.cfg.fuseTrans, p=2, dim=1)
                 XYZid, ML = transform.fuse3D(
                     self.cfg, XYZ, maskLogit, fuseTrans) # [B,3,VHW],[B,1,VHW]
                 newDepth, newMaskLogit, collision = transform.render2D(
@@ -373,6 +380,7 @@ class TrainerStage2:
     def _make_images_board(self, model):
         model.eval()
         num_imgs = 64
+        fuseTrans = self.cfg.fuseTrans
 
         batch = next(iter(self.data_loaders[1]))
         input_images, renderTrans, depthGT, maskGT = utils.unpack_batch_novel(batch, self.cfg.device)
@@ -380,7 +388,6 @@ class TrainerStage2:
         with torch.set_grad_enabled(False):
             XYZ, maskLogit = model(input_images)
             # ------ build transformer ------
-            fuseTrans = F.normalize(self.cfg.fuseTrans, p=2, dim=1)
             XYZid, ML = transform.fuse3D(
                 self.cfg, XYZ, maskLogit, fuseTrans) # [B,3,VHW],[B,1,VHW]
             newDepth, newMaskLogit, collision = transform.render2D(
@@ -406,6 +413,7 @@ class TrainerStage2:
 
         lrs = np.logspace(np.log10(start_lr), np.log10(end_lr), num_iters)
         losses = []
+        fuseTrans = self.cfg.fuseTrans
 
         for lr in lrs:
             # Update LR
@@ -420,7 +428,6 @@ class TrainerStage2:
 
                 XYZ, maskLogit = model(input_images)
                 # ------ build transformer ------
-                fuseTrans = F.normalize(self.cfg.fuseTrans, p=2, dim=1)
                 XYZid, ML = transform.fuse3D(
                     self.cfg, XYZ, maskLogit, fuseTrans) # [B,3,VHW],[B,1,VHW]
                 newDepth, newMaskLogit, collision = transform.render2D(
