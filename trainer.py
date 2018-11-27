@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import torch
-import torch.nn.functional as F
+import scipy
 
 import transform
 import utils
@@ -28,7 +28,7 @@ class TrainerStage1:
         for self.epoch in range(self.cfg.startEpoch, self.cfg.endEpoch):
             print(f"Epoch {self.epoch}:")
 
-            train_epoch_loss = self._train_on_epoch(model, optimizer, scheduler)
+            train_epoch_loss = self._train_on_epoch(model, optimizer)
             val_epoch_loss = self._val_on_epoch(model)
 
             hist = {
@@ -257,7 +257,7 @@ class TrainerStage2:
         for self.epoch in range(self.cfg.startEpoch, self.cfg.endEpoch):
             print(f"Epoch {self.epoch}:")
 
-            train_epoch_loss = self._train_on_epoch(model, optimizer, scheduler)
+            train_epoch_loss = self._train_on_epoch(model, optimizer)
             val_epoch_loss = self._val_on_epoch(model)
 
             hist = {
@@ -458,3 +458,49 @@ class TrainerStage2:
         ax.set_ylabel('loss')
         ax.set_xscale('log')
         writer.add_figure('findLR', fig)
+
+
+class Validator:
+    '''Perform Validation on the trained Structure generator'''
+    def __init__(self, cfg, dataset):
+        self.cfg = cfg
+        self.dataset = dataset
+        self.history = []
+        self.CADs = dataset.CADs
+        EXPERIMENT = f"{cfg.model}_{cfg.experiment}"
+        self.result_path = f"results/{EXPERIMENT}"
+
+    def eval(self, model):
+        print("======= EVALUATION START =======")
+
+        fuseTrans = self.cfg.fuseTrans
+        for i in range(len(self.dataset)):
+            cad = self.dataset[i]
+            input_images = torch.from_numpy(cad['image_in'])\
+                                .permute((0,3,1,2))\
+                                .float().to(self.cfg.device)
+            points24 = np.zeros([self.cfg.inputViewN], dtype=np.object)
+
+            XYZ, maskLogit = model(input_images)
+            mask = (maskLogit > 0).float()
+            # ------ build transformer ------
+            XYZid, ML = transform.fuse3D(
+                self.cfg, XYZ, maskLogit, fuseTrans) # [B,3,VHW],[B,1,VHW]
+            
+            for a in range(self.cfg.inputViewN):
+                xyz = XYZid[a].transpose(0,1) #[VHW, 3]
+                ml = ML[a].reshape([-1]) #[VHW]
+                points24[a] = (xyz[ml > 0]).detach().cpu().numpy()
+
+            pointMeanN = np.array([len(p) for p in points24]).mean()
+            scipy.io.savemat(
+                f"{self.result_path}/{self.CADs[i]}.mat", 
+                {"image": cad["image_in"], "pointcloud": points24})
+
+            print(f"Save pointcloud to {self.result_path}/{self.CADs[i]}.mat")
+            self.history.append(
+                {"cad": self.CADs[i], "average points": pointMeanN})
+
+        print("======= EVALUATION DONE =======")
+        return pd.DataFrame(self.history)
+

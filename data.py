@@ -13,7 +13,6 @@ class PointCloud2dDataset(Dataset):
         depth (np.ndarray): [angles, height, width]
         mask (np.ndarray): [angles, height, width]
     """
-
     def __init__(self, cfg, loadNovel=False, loadFixedOut=True,
                  loadTest=False):
         self.cfg = cfg
@@ -107,9 +106,9 @@ class PointCloud2dDataset(Dataset):
                 each element of list batch has shape
                 [viewN, height, width, channels]
         Return: {}
-            inputImage: [batchSize, height, width, channels]
-            depth_fixedOut: [batchSize, height, width, 8]
-            mask_fixedOut: [batchSize, height, width, 8]
+            inputImage: [batchSize, channels, height, width]
+            depth_fixedOut: [batchSize, 8, height, width]
+            mask_fixedOut: [batchSize, 8, height, width]
         """
         # Shape: [chunkSize, viewN, height, width, channels]
         batch_n = {key: np.array([d[key] for d in batch]) for key in batch[0]}
@@ -132,6 +131,7 @@ class PointCloud2dDataset(Dataset):
             "depthGT": depthGT,
             "maskGT": maskGT,
         }
+
 
 if __name__ == "__main__":
     import options

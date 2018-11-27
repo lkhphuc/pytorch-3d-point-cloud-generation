@@ -32,10 +32,10 @@ def parse_arguments():
     # For stage 2
     parser.add_argument(
         "--loadPath", type=str, default=None,
-        help="path to trained stage 1 model for finetune stage 2")
+        help="path to load model")
     parser.add_argument(
         "--loadEpoch", type=int, default=None,
-        help="stage 1 trained model to load for finetune stage 2")
+        help="model to load in loadPath, default load best")
 
     parser.add_argument(
         "--startEpoch", type=int, default=0,

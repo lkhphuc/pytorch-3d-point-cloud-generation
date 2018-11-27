@@ -41,17 +41,18 @@
 # 	--lrSched annealing --lrGamma 0.95 \
 # 	--gpu 1
 
-python train_stg1.py --model ORIG_STG1 --experiment sgd_trueWD_momentum \
+python train_stg1.py --model ORIG_STG1 --experiment sgd_trueWD_momentum_restart \
 	--endEpoch 1000 \
 	--chunkSize 100 --batchSize 100 \
-	--optim sgd --trueWD 1e-4 --momentum 0.9 --lr 5e-2 \
+	--optim sgd --trueWD 1e-4 --momentum 0.9 --lr 1e-1 \
+	--lrSched restart --T_0 5 --T_mult 2 --lrBase 1e-3 \
 	--gpu 1
 
 # python train_stg1.py --model ORIG_STG1 --experiment sgd_nesterov_cyclical \
 # 	--endEpoch 1000 \
 # 	--chunkSize 100 --batchSize 100 \
-# 	--optim sgd --nesterov 0.9 --lr 1e-4 \
-# 	--lrSched cyclical --lrMax 5e-2 --lrStep 1000 --lrGamma 0.95 \
+# 	--optim sgd --momentum 0.9 --lr 1e-1 \
+	# --lrSched restart --T_0 10 --T_mult 2 --lrBase 5e-5 \
 # 	--gpu 1
 
 # python train_stg1.py --model ORIG_STG1 --experiment sgd_trueWD_restart \

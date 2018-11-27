@@ -132,7 +132,7 @@ def make_optimizer(cfg, model):
             opt = optim.Adam(params, cfg.lr, weight_decay=0)
         elif cfg.optim.lower() in 'sgd':
             if cfg.momentum is not None:
-                statement += "with SGD optimizer (SGDW), momentum: {cfg.momentum}"
+                statement += f"with SGD optimizer (SGDW), momentum: {cfg.momentum}"
                 opt = optim.SGD(params, cfg.lr, cfg.momentum)
         statement += f"\nLearning rate: {cfg.lr:.2e}, weight decay: {cfg.trueWD:.2e}"
     else:
@@ -141,7 +141,7 @@ def make_optimizer(cfg, model):
             statement += "with Adam optimizer (Adam)"
             opt = optim.Adam(params, cfg.lr, weight_decay=cfg.wd)
         elif cfg.optim.lower() in 'sgd':
-            statement += "with SGD optimizer (SGD), momentum: {cfg.momentum}"
+            statement += f"with SGD optimizer (SGD), momentum: {cfg.momentum}"
             opt = optim.SGD(params, cfg.lr, cfg.momentum, weight_decay=cfg.wd)
         statement += f"\nLearning rate: {cfg.lr:.2e}, weight decay: {cfg.wd:.2e}"
 
