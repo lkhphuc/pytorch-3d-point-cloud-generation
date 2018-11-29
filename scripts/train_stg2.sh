@@ -30,6 +30,6 @@
 python train_stg2.py --model ORIG_STG2 --experiment sgd_trueWD_restart \
 	--loadPath ORIG_STG1_sgd_trueWD_restart \
 	--chunkSize 32 --batchSize 32 \
-	--optim adam --trueWD 1e-1 --lr 1e-1 \
+	--optim sgd --trueWD 1e-4 --lr 1e-1 \
 	--lrSched restart --T_0 5 --T_mult 2 --lrBase 5e-3 \
 	--gpu 1

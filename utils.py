@@ -2,6 +2,7 @@
 import os
 import logging
 
+import numpy as np
 import pandas as pd
 import torch
 from torch import optim
@@ -18,15 +19,15 @@ import custom_scheduler
 
 def projection(Vs, Vt):
     '''compute projection from source to target'''
-    VsN = Vs.size(0)
-    VtN = Vt.size(0)
-    Vt_rep = torch.repeat(Vt[None, :, :], [VsN, 1, 1])  # [VsN,VtN,3]
-    Vs_rep = torch.repeat(Vs[:, None, :], [1, VtN, 1])  # [VsN,VtN,3]
+    VsN = Vs.shape[0]
+    VtN = Vt.shape[0]
+    Vt_rep = np.tile(Vt[None, :, :], [VsN, 1, 1])  # [VsN,VtN,3]
+    Vs_rep = np.tile(Vs[:, None, :], [1, VtN, 1])  # [VsN,VtN,3]
     diff = Vt_rep - Vs_rep
-    dist = diff.pow(2).sum(dim=2).sqrt()  # [VsN,VtN]
-    idx = dist.argmin(dim=1).int()
-    proj = Vt_rep[torch.arange(VsN), idx, :]
-    minDist = dist[torch.arange(VsN), idx, :]
+    dist = np.sqrt(np.sum(diff**2, axis=2))  # [VsN,VtN]
+    idx = np.argmin(dist, axis=1)
+    proj = Vt_rep[np.arange(VsN), idx, :]
+    minDist = dist[np.arange(VsN), idx]
 
     return proj, minDist
 

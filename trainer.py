@@ -460,6 +460,7 @@ class TrainerStage2:
         writer.add_figure('findLR', fig)
 
 
+
 class Validator:
     '''Perform Validation on the trained Structure generator'''
     def __init__(self, cfg, dataset):
@@ -467,8 +468,7 @@ class Validator:
         self.dataset = dataset
         self.history = []
         self.CADs = dataset.CADs
-        EXPERIMENT = f"{cfg.model}_{cfg.experiment}"
-        self.result_path = f"results/{EXPERIMENT}"
+        self.result_path = f"results/{cfg.model}_{cfg.experiment}"
 
     def eval(self, model):
         print("======= EVALUATION START =======")
@@ -479,7 +479,7 @@ class Validator:
             input_images = torch.from_numpy(cad['image_in'])\
                                 .permute((0,3,1,2))\
                                 .float().to(self.cfg.device)
-            points24 = np.zeros([self.cfg.inputViewN], dtype=np.object)
+            points24 = np.zeros([self.cfg.inputViewN, 1], dtype=np.object)
 
             XYZ, maskLogit = model(input_images)
             mask = (maskLogit > 0).float()
@@ -490,7 +490,7 @@ class Validator:
             for a in range(self.cfg.inputViewN):
                 xyz = XYZid[a].transpose(0,1) #[VHW, 3]
                 ml = ML[a].reshape([-1]) #[VHW]
-                points24[a] = (xyz[ml > 0]).detach().cpu().numpy()
+                points24[a, 0] = (xyz[ml > 0]).detach().cpu().numpy()
 
             pointMeanN = np.array([len(p) for p in points24]).mean()
             scipy.io.savemat(
@@ -504,3 +504,58 @@ class Validator:
         print("======= EVALUATION DONE =======")
         return pd.DataFrame(self.history)
 
+    def eval_dist(self, model):
+        print("======= EVALUATION START =======")
+        CADN = len(self.CADs)
+
+        pred2GT_all = np.ones([CADN, self.cfg.inputViewN]) * np.inf
+        GT2pred_all = np.ones([CADN, self.cfg.inputViewN]) * np.inf
+        for m, cad in enumerate(self.CADs):
+            # load GT
+            obj = scipy.io.loadmat(f"{self.cfg.path}/{self.cfg.category}_testGT/{cad}.mat")
+            Vgt = np.concatenate([obj["V"], obj["Vd"]], axis=0)
+            VgtN = len(Vgt)
+            # load prediction
+            Vpred24 = scipy.io.loadmat(f"{self.result_path}/{cad}.mat")["pointcloud"][:, 0]
+            assert (len(Vpred24) == self.cfg.inputViewN)
+
+            for a in range(self.cfg.inputViewN):
+                Vpred = Vpred24[a]
+                VpredN = len(Vpred)
+                # rotate CAD model to be in consistent coordinates
+                Vpred[:, 1], Vpred[:, 2] = Vpred[:, 2], -Vpred[:, 1]
+                # compute test error in both directions
+                pred2GT_all[m, a] = self._computeTestError(Vpred, Vgt, type="pred->GT")
+                GT2pred_all[m, a] = self._computeTestError(Vgt, Vpred, type="GT->pred")
+
+            self.history.append({"cad": cad,
+                                 "pred->GT": pred2GT_all[m].mean()*100,
+                                 "GT->pred": GT2pred_all[m].mean()*100,
+                                 })
+
+        print("======= EVALUATION DONE =======")
+        return pd.DataFrame(self.history)
+
+    def _computeTestError(self, Vs, Vt, type):
+        """compute test error for one prediction"""
+        VsN, VtN = len(Vs), len(Vt)
+        if type == "pred->GT":
+            evalN, VsBatchSize, VtBatchSize = min(VsN, 200), 200, 100000
+        if type == "GT->pred":
+            evalN, VsBatchSize, VtBatchSize = min(VsN, 200), 200, 40000
+        # randomly sample 3D points to evaluate (for speed)
+        randIdx = np.random.permutation(VsN)[:evalN]
+        Vs_eval = Vs[randIdx]
+        minDist_eval = np.ones([evalN]) * np.inf
+        # for batches of source vertices
+        VsBatchN = int(np.ceil(evalN / VsBatchSize))
+        VtBatchN = int(np.ceil(VtN / VtBatchSize))
+        for b in range(VsBatchN):
+            VsBatch = Vs_eval[b * VsBatchSize:(b + 1) * VsBatchSize]
+            minDist_batch = np.ones([len(VsBatch)]) * np.inf
+            for b2 in range(VtBatchN):
+                VtBatch = Vt[b2 * VtBatchSize:(b2 + 1) * VtBatchSize]
+                _, minDist = utils.projection(VsBatch, VtBatch)
+                minDist_batch = np.minimum(minDist_batch, minDist)
+            minDist_eval[b * VsBatchSize:(b + 1) * VsBatchSize] = minDist_batch
+        return np.mean(minDist_eval)

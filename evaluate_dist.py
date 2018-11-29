@@ -5,7 +5,7 @@ from trainer import Validator
 if __name__ == "__main__":
 
     print("=======================================================")
-    print("Evaluate / generate 3D Point Cloud generation model.")
+    print("Evaluate distance of 3D Point Cloud generation model.")
     print("=======================================================")
 
     cfg = options.get_arguments()
@@ -23,5 +23,5 @@ if __name__ == "__main__":
 
     validator = Validator(cfg, test_dataset) 
 
-    hist = validator.eval(model)
-    hist.to_csv(f"{RESULTS_PATH}.csv", index=False)
+    hist = validator.eval_dist(model)
+    hist.to_csv(f"{RESULTS_PATH}_testerror.csv", index=False)
