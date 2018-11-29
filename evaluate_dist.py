@@ -19,9 +19,8 @@ if __name__ == "__main__":
     dataloaders = utils.make_data_fixed(cfg)
     test_dataset = dataloaders[1].dataset
 
-    model = utils.build_structure_generator(cfg).to(cfg.device)
 
     validator = Validator(cfg, test_dataset) 
 
-    hist = validator.eval_dist(model)
+    hist = validator.eval_dist()
     hist.to_csv(f"{RESULTS_PATH}_testerror.csv", index=False)

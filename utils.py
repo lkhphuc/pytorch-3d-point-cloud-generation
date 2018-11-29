@@ -16,20 +16,6 @@ import torchvision
 from PCGModel import Structure_Generator
 
 
-def projection(Vs, Vt):
-    '''compute projection from source to target'''
-    VsN = Vs.shape[0]
-    VtN = Vt.shape[0]
-    Vt_rep = np.tile(Vt[None, :, :], [VsN, 1, 1])  # [VsN,VtN,3]
-    Vs_rep = np.tile(Vs[:, None, :], [1, VtN, 1])  # [VsN,VtN,3]
-    diff = Vt_rep - Vs_rep
-    dist = np.sqrt(np.sum(diff**2, axis=2))  # [VsN,VtN]
-    idx = np.argmin(dist, axis=1)
-    proj = Vt_rep[np.arange(VsN), idx, :]
-    minDist = dist[np.arange(VsN), idx]
-
-    return proj, minDist
-
 def make_folder(PATH):
     if not os.path.exists(PATH):
         os.makedirs(PATH)

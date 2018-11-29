@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import scipy
+import scipy.io
 import torch
 
 import transform
@@ -464,6 +464,7 @@ class Validator:
     '''Perform Validation on the trained Structure generator'''
     def __init__(self, cfg, dataset):
         self.cfg = cfg
+        self.device = cfg.device
         self.dataset = dataset
         self.history = []
         self.CADs = dataset.CADs
@@ -503,34 +504,36 @@ class Validator:
         print("======= EVALUATION DONE =======")
         return pd.DataFrame(self.history)
 
-    def eval_dist(self, model):
+    def eval_dist(self):
         print("======= EVALUATION START =======")
         CADN = len(self.CADs)
 
         pred2GT_all = np.ones([CADN, self.cfg.inputViewN]) * np.inf
         GT2pred_all = np.ones([CADN, self.cfg.inputViewN]) * np.inf
-        for m, cad in enumerate(self.CADs):
-            # load GT
-            obj = scipy.io.loadmat(f"{self.cfg.path}/{self.cfg.category}_testGT/{cad}.mat")
-            Vgt = np.concatenate([obj["V"], obj["Vd"]], axis=0)
-            VgtN = len(Vgt)
-            # load prediction
-            Vpred24 = scipy.io.loadmat(f"{self.result_path}/{cad}.mat")["pointcloud"][:, 0]
-            assert (len(Vpred24) == self.cfg.inputViewN)
+        with torch.set_grad_enabled(False):
+            for m, cad in enumerate(self.CADs):
+                # load GT
+                obj = scipy.io.loadmat(f"{self.cfg.path}/{self.cfg.category}_testGT/{cad}.mat")
+                Vgt = torch.from_numpy(np.concatenate([obj["V"], obj["Vd"]], axis=0)).to(self.device).float()
+                VgtN = len(Vgt)
+                # load prediction
+                Vpred24 = scipy.io.loadmat(f"{self.result_path}/{cad}.mat")["pointcloud"][:, 0]
+                assert (len(Vpred24) == self.cfg.inputViewN)
 
-            for a in range(self.cfg.inputViewN):
-                Vpred = Vpred24[a]
-                VpredN = len(Vpred)
-                # rotate CAD model to be in consistent coordinates
-                Vpred[:, 1], Vpred[:, 2] = Vpred[:, 2], -Vpred[:, 1]
-                # compute test error in both directions
-                pred2GT_all[m, a] = self._computeTestError(Vpred, Vgt, type="pred->GT")
-                GT2pred_all[m, a] = self._computeTestError(Vgt, Vpred, type="GT->pred")
+                for a in range(self.cfg.inputViewN):
+                    Vpred = torch.from_numpy(Vpred24[a]).to(self.device).float()
+                    VpredN = len(Vpred)
+                    # rotate CAD model to be in consistent coordinates
+                    Vpred[:, 1], Vpred[:, 2] = Vpred[:, 2], -Vpred[:, 1]
+                    # compute test error in both directions
+                    pred2GT_all[m, a] = self._computeTestError(Vpred, Vgt, type="pred->GT")
+                    GT2pred_all[m, a] = self._computeTestError(Vgt, Vpred, type="GT->pred")
 
-            self.history.append({"cad": cad,
-                                 "pred->GT": pred2GT_all[m].mean()*100,
-                                 "GT->pred": GT2pred_all[m].mean()*100,
-                                 })
+                info = {"cad": cad,
+                        "pred->GT": pred2GT_all[m].mean()*100,
+                        "GT->pred": GT2pred_all[m].mean()*100,}
+                print(info)
+                self.history.append(info)
 
         print("======= EVALUATION DONE =======")
         return pd.DataFrame(self.history)
@@ -554,7 +557,21 @@ class Validator:
             minDist_batch = np.ones([len(VsBatch)]) * np.inf
             for b2 in range(VtBatchN):
                 VtBatch = Vt[b2 * VtBatchSize:(b2 + 1) * VtBatchSize]
-                _, minDist = utils.projection(VsBatch, VtBatch)
+                _, minDist = self._projection(VsBatch, VtBatch)
+                minDist = minDist.detach().cpu().numpy()
                 minDist_batch = np.minimum(minDist_batch, minDist)
             minDist_eval[b * VsBatchSize:(b + 1) * VsBatchSize] = minDist_batch
         return np.mean(minDist_eval)
+
+    def _projection(self, Vs, Vt):
+        '''compute projection from source to target'''
+        VsN = Vs.size(0)
+        VtN = Vt.size(0)
+        diff = Vt[None, :, :] - Vs[:, None, :]
+        dist = (diff**2).sum(dim=2).sqrt()
+        idx = torch.argmin(dist, dim=1)
+        # proj = Vt_rep[np.arange(VsN), idx, :]
+        proj = None
+        minDist = dist[np.arange(VsN), idx]
+
+        return proj, minDist
