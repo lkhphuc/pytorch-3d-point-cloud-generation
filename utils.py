@@ -23,10 +23,10 @@ def projection(Vs, Vt):
     Vt_rep = torch.repeat(Vt[None, :, :], [VsN, 1, 1])  # [VsN,VtN,3]
     Vs_rep = torch.repeat(Vs[:, None, :], [1, VtN, 1])  # [VsN,VtN,3]
     diff = Vt_rep - Vs_rep
-    dist = torch.sqrt(torch.reduce_sum(diff**2, axis=[2]))  # [VsN,VtN]
-    idx = torch.to_int32(torch.argmin(dist, axis=1))
-    proj = torch.gather_nd(Vt_rep, torch.stack([torch.range(VsN), idx], axis=1))
-    minDist = torch.gather_nd(dist, torch.stack([torch.range(VsN), idx], axis=1))
+    dist = diff.pow(2).sum(dim=2).sqrt()  # [VsN,VtN]
+    idx = dist.argmin(dim=1).int()
+    proj = Vt_rep[torch.arange(VsN), idx, :]
+    minDist = dist[torch.arange(VsN), idx, :]
 
     return proj, minDist
 
@@ -99,6 +99,7 @@ def unpack_batch_novel(batch, device):
 
     return input_images, renderTrans, depthGT, maskGT
 
+
 def define_losses():
     l1_loss = nn.L1Loss()
     bce_loss = nn.BCEWithLogitsLoss()
@@ -125,15 +126,14 @@ def build_structure_generator(cfg):
 def make_optimizer(cfg, model):
     params = model.parameters()
 
-    if cfg.trueWD is not None:
+    if cfg.trueWD != 0:
         statement = "Use true (decouple with L2 regularization) weight decay "
         if cfg.optim.lower() in 'adam':
             statement += "with Adam optimizer (AdamW)"
             opt = optim.Adam(params, cfg.lr, weight_decay=0)
         elif cfg.optim.lower() in 'sgd':
-            if cfg.momentum is not None:
-                statement += f"with SGD optimizer (SGDW), momentum: {cfg.momentum}"
-                opt = optim.SGD(params, cfg.lr, cfg.momentum)
+            statement += f"with SGD optimizer (SGDW), momentum: {cfg.momentum}"
+            opt = optim.SGD(params, cfg.lr, cfg.momentum)
         statement += f"\nLearning rate: {cfg.lr:.2e}, weight decay: {cfg.trueWD:.2e}"
     else:
         statement = "Use default (coupled with L2 regularization) weight decay "

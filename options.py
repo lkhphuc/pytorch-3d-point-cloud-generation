@@ -67,10 +67,10 @@ def parse_arguments():
         "--wd", type=float, default=0.0,
         help="value for weight decay as implemented (L2 norm)")
     parser.add_argument(
-        "--trueWD", type=float, default=None,
+        "--trueWD", type=float, default=0,
         help="value for TRUE weight decay")
     parser.add_argument(
-        "--momentum", type=float, default=None,
+        "--momentum", type=float, default=0,
         help="value formomentum, default=None")
 
     # LR scheduler
