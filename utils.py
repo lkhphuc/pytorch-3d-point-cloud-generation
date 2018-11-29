@@ -1,20 +1,19 @@
 """Utilities for 2D-3D conversion, training and building models"""
-import os
 import logging
+import os
 
 import numpy as np
 import pandas as pd
 import torch
-from torch import optim
-from torch import nn
+from tensorboardX import SummaryWriter
+from torch import nn, optim
 from torch.optim import lr_scheduler
 from torch.utils.data import DataLoader
-from torchvision import utils as vutils
-from tensorboardX import SummaryWriter
 
-import data
-from PCGModel import Structure_Generator
 import custom_scheduler
+import data
+import torchvision
+from PCGModel import Structure_Generator
 
 
 def projection(Vs, Vt):
@@ -40,7 +39,7 @@ def make_logger(PATH):
     logger.setLevel(logging.DEBUG)
     if not logger.hasHandlers():
         logger.addHandler(logging.FileHandler(filename=f"{PATH}.log"))
-    
+
     print("Create logger")
     return logger
 
@@ -107,7 +106,9 @@ def define_losses():
     return l1_loss, bce_loss
 
 def build_structure_generator(cfg):
-    model = Structure_Generator(outViewN=cfg.outViewN, outW=cfg.outW, outH=cfg.outH, renderDepth=cfg.renderDepth)
+    model = Structure_Generator(
+        outViewN=cfg.outViewN, outW=cfg.outW,
+        outH=cfg.outH, renderDepth=cfg.renderDepth)
     statement = "Build Structure Generator"
 
     if cfg.loadPath is not None:
@@ -115,11 +116,11 @@ def build_structure_generator(cfg):
 
         if cfg.loadEpoch is None:
             model.load_state_dict(torch.load(f"{LOAD_PATH}/best.pth"))
-            statement += f"and load best weights from {LOAD_PATH}"
+            statement += f" and load best weights from {LOAD_PATH}"
         else:
             model.load_state_dict(
                 torch.load(f"{LOAD_PATH}/{cfg.loadEpoch}.pth"))
-            statement += f"and load weights epoch {cfg.loadEpoch} from {LOAD_PATH}"
+            statement += f" and load weights epoch {cfg.loadEpoch} from {LOAD_PATH}"
 
     print(statement)
     return model
@@ -243,4 +244,4 @@ def write_on_board_lr(writer, lr, iteration):
         writer.add_scalar(f"lr_{i}", lr[i], iteration)
 
 def make_grid(t):
-    return vutils.make_grid(t, normalize=True)
+    return torchvision.utils.make_grid(t, normalize=True)

@@ -1,3 +1,4 @@
+"""Contains custom learning rate scheduler"""
 import numpy as np
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
@@ -106,10 +107,10 @@ class CyclicLR(_LRScheduler):
 
     def _triangular_scale_fn(self, x):
         return 1.
-    
+
     def _triangular2_scale_fn(self, x):
         return 1 / (2. ** (x - 1))
-    
+
     def _exp_range_scale_fn(self, x):
         return self.gamma**(x)
 
@@ -162,14 +163,14 @@ class CosineAnnealingWithRestartsLR(_LRScheduler):
         self.restarted_at = 0
         super(CosineAnnealingWithRestartsLR, self).__init__(optimizer, last_epoch)
         # self.base_lrs == max_lr
-    
+
     def restart(self):
         self.restart_every *= self.T_mult
         self.restarted_at = self.last_epoch
-    
+
     def cosine(self, base_lr):
         return self.eta_min + (base_lr - self.eta_min) * (1 + np.cos(np.pi * self.step_n / self.restart_every)) / 2
-    
+
     @property
     def step_n(self):
         return self.last_epoch - self.restarted_at

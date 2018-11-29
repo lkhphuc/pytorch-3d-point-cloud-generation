@@ -1,8 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import torch
 import scipy
+import torch
 
 import transform
 import utils
@@ -458,7 +458,6 @@ class TrainerStage2:
         ax.set_ylabel('loss')
         ax.set_xscale('log')
         writer.add_figure('findLR', fig)
-
 
 
 class Validator:

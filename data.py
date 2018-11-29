@@ -1,6 +1,6 @@
 """Pytorch Dataset and Dataloader for 3D PCG"""
 import numpy as np
-import scipy.io
+import scipy
 import torch
 from torch.utils.data import DataLoader, Dataset
 

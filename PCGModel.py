@@ -1,3 +1,4 @@
+"""Build Point Cloud Generator Pytorch model"""
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -47,7 +48,6 @@ def pixel_bias(outViewN, outW, outH, renderDepth):
 
 class Encoder(nn.Module):
     """Encoder of Structure Generator"""
-
     def __init__(self):
         super(Encoder, self).__init__()
         self.conv1 = conv2d_block(3, 96)
@@ -72,7 +72,6 @@ class Encoder(nn.Module):
 
 class Decoder(nn.Module):
     """Build Decoder"""
-
     def __init__(self, outViewN, outW, outH, renderDepth):
         super(Decoder, self).__init__()
         self.outViewN = outViewN
