@@ -165,7 +165,7 @@ def save_best_model(model_path, model, df_hist):
         torch.save(model.state_dict(), f"{model_path}/best.pth")
 
 def checkpoint_model(model_path, model, epoch, saveEpoch):
-    if (saveEpoch is not None) and ((epoch+1) % saveEpoch == 0):
+    if (saveEpoch is not None) and (epoch % saveEpoch == 0):
         torch.save(model.state_dict(), f"{model_path}/{epoch}.pth")
 
 
