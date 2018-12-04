@@ -2,12 +2,12 @@
 # 	--loadPath ORIG_STG2_adam_trueWD_cyclical \
 # 	--chunkSize 32 --batchSize 32 
 
-# python evaluate_dist.py --model ORIG_STG2 --experiment sgd_trueWD_restart \
-# 	--loadPath ORIG_STG2_sgd_trueWD_restart \
-# 	--chunkSize 32 --batchSize 32 \
-# 	--gpu 0
-
-python evaluate_dist.py --model ORIG_STG2 --experiment orig_tf \
-	--loadPath "~/3D-point-cloud-generation/results_0/orig-ft_it100000" \
+python evaluate_dist.py --model ORIG_STG2 --experiment sgd_trueWD_restart_cont \
+	--loadPath ORIG_STG2_sgd_trueWD_restart_cont \
 	--chunkSize 32 --batchSize 32 \
-	--gpu 1
+	--gpu 0
+
+# python evaluate_dist.py --model ORIG_STG2 --experiment orig_tf \
+# 	--loadPath "~/3D-point-cloud-generation/results_0/orig-ft_it100000" \
+# 	--chunkSize 32 --batchSize 32 \
+# 	--gpu 1

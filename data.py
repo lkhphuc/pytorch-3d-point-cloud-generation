@@ -63,11 +63,11 @@ class PointCloud2dDataset(Dataset):
             batch: (list) [chunkSize, ]
                 each element of list batch has shape
                 [viewN, height, width, channels]
-        Return: {}
-            inputImage: [batchSize, height, width, channels]
+        Return: Tensor 
+            inputImage: [batchSize, channels, height, width]
             targetTrans: [batchSize, novelN, 4]
-            depthGT: [batchSize, novelN, height, width, 1]
-            maskGT: [batchSize, novelN, height, width, 1]
+            depthGT: [batchSize, novelN, 1, height, width]
+            maskGT: [batchSize, novelN, 1, height, width]
         """
         # Shape: [chunkSize, viewN, height, width, channels] 
         batch_n = {key: np.array([d[key] for d in batch]) for key in batch[0]}
@@ -75,9 +75,8 @@ class PointCloud2dDataset(Dataset):
         modelIdx = np.random.permutation(self.cfg.chunkSize)[:self.cfg.batchSize]
         # Shape: [batchSize, novelN]
         modelIdxTile = np.tile(modelIdx, [self.cfg.novelN, 1]).T
-        # 24 is the number of rendered images for a single CAD models
         # Shape: [batchSize,]
-        angleIdx = np.random.randint(24, size=[self.cfg.batchSize])
+        angleIdx = np.random.randint(self.cfg.inputViewN, size=[self.cfg.batchSize])
         # Shape: [batchSize, novelN]
         sampleIdx = np.random.randint(
             self.cfg.sampleN, size=[self.cfg.batchSize, self.cfg.novelN])

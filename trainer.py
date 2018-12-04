@@ -487,17 +487,18 @@ class Validator:
             XYZid, ML = transform.fuse3D(
                 self.cfg, XYZ, maskLogit, fuseTrans) # [B,3,VHW],[B,1,VHW]
             
+            XYZid, ML = XYZid.permute([0, 2, 1]), ML.squeeze()
             for a in range(self.cfg.inputViewN):
-                xyz = XYZid[a].transpose(0,1) #[VHW, 3]
-                ml = ML[a].reshape([-1]) #[VHW]
+                xyz = XYZid[a] #[VHW, 3]
+                ml = ML[a] #[VHW]
                 points24[a, 0] = (xyz[ml > 0]).detach().cpu().numpy()
 
-            pointMeanN = np.array([len(p) for p in points24]).mean()
+            pointMeanN = np.array([len(p) for p in points24[:, 0]]).mean()
             scipy.io.savemat(
                 f"{self.result_path}/{self.CADs[i]}.mat", 
                 {"image": cad["image_in"], "pointcloud": points24})
 
-            print(f"Save pointcloud to {self.result_path}/{self.CADs[i]}.mat")
+            print(f"{pointMeanN:.2f} points save to {self.result_path}/{self.CADs[i]}.mat")
             self.history.append(
                 {"cad": self.CADs[i], "average points": pointMeanN})
 

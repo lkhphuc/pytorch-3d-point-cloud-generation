@@ -116,18 +116,23 @@ def render2D(cfg, XYZid, ML, renderTrans):  # [B,1,VHW]
     _, MLnewInvis = torch.unbind(invisFloat, dim=1) # [U-U']
 
     # map to upsampled inverse depth and mask (visible)
-    scatterIdx = torch.stack(
-        [batchIdxVis, novelIdxVis, YnewVis, XnewVis], dim=1)  # [U,4]
+    # scatterIdx = torch.stack(
+    #     [batchIdxVis, novelIdxVis, YnewVis, XnewVis], dim=1)  # [U,4]
     upNewiZMLCnt = torch.zeros([cfg.batchSize, cfg.novelN, 3,
                                  cfg.H*cfg.upscale, cfg.W*cfg.upscale]
                                 ).to(cfg.device) #[B,N,3,uH,uW]
     countOnes = torch.ones_like(iZnewVis)
     scatteriZMLCnt = torch.stack([iZnewVis, MLnewVis, countOnes], dim=1) #[U,3]
-    upNewiZMLCnt[scatterIdx[:,0],
-                 scatterIdx[:,1],
+    # upNewiZMLCnt[scatterIdx[:,0],
+    #              scatterIdx[:,1],
+    #              :,
+    #              scatterIdx[:,2],
+    #              scatterIdx[:,3]] = scatteriZMLCnt
+    upNewiZMLCnt[batchIdxVis,
+                 novelIdxVis,
                  :,
-                 scatterIdx[:,2],
-                 scatterIdx[:,3]] = scatteriZMLCnt
+                 YnewVis,
+                 XnewVis] = scatteriZMLCnt
     upNewiZMLCnt = upNewiZMLCnt.reshape([cfg.batchSize * cfg.novelN,
                                          3,
                                          cfg.H * cfg.upscale,
@@ -145,7 +150,7 @@ def render2D(cfg, XYZid, ML, renderTrans):  # [B,1,VHW]
     upNewML = torch.zeros([cfg.batchSize, cfg.novelN, 1,
                            cfg.H*cfg.upscale, cfg.W*cfg.upscale]
                           ).to(cfg.device) # [B,N,1,uH,uW]
-    scatterML = torch.stack([MLnewInvis], dim=1)  # [U,1]
+    scatterML = MLnewInvis.unsqueeze(-1)  # [U,1]
     upNewML[scatterIdx[:,0],
             scatterIdx[:,1],
             :,
