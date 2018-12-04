@@ -12,9 +12,7 @@ if __name__ == "__main__":
     cfg.batchSize = cfg.inputViewN
     # cfg.chunkSize = 50
 
-    EXPERIMENT = f"{cfg.model}_{cfg.experiment}"
-    RESULTS_PATH = f"results/{EXPERIMENT}"
-    utils.make_folder(RESULTS_PATH)
+    RESULTS_PATH = f"results/{cfg.model}_{cfg.experiment}"
 
     dataloaders = utils.make_data_fixed(cfg)
     test_dataset = dataloaders[1].dataset
