@@ -13,6 +13,7 @@ if __name__ == "__main__":
     # cfg.chunkSize = 50
 
     RESULTS_PATH = f"results/{cfg.model}_{cfg.experiment}"
+    utils.make_folder(RESULTS_PATH)
 
     dataloaders = utils.make_data_fixed(cfg)
     test_dataset = dataloaders[1].dataset
