@@ -1,8 +1,10 @@
 # Pytorch: Learning Efficient Point Cloud Generation for Dense 3D Object Reconstruction
-A Pytorch port of the original TF implementation.
+A Pytorch implementation of the paper: Learning Efficient Point Cloud Generation
+for Dense 3D Object Reconstruction 
 
-Original Website: https://chenhsuanlin.bitbucket.io/3D-point-cloud-generation
-Original TF implementation: https://github.com/chenhsuanlin/3D-point-cloud-generation
+- Article: https://medium.com/@lkhphuc/create-3d-model-from-a-single-2d-image-in-pytorch-917aca00bb07
+- Original Website: https://chenhsuanlin.bitbucket.io/3D-point-cloud-generation
+- Original TF implementation: https://github.com/chenhsuanlin/3D-point-cloud-generation
 
 --------------------------------------
 
@@ -12,6 +14,7 @@ Original TF implementation: https://github.com/chenhsuanlin/3D-point-cloud-gener
 This code is developed with Python3 (`python3`). Pytorch 0.4+ is required.
 
 ### Dataset
+(Provided in TF's repo)
 The dataset (8.8GB) can be downloaded by running the command
 ```
 wget https://cmu.box.com/shared/static/s4lkm5ej7sh4px72vesr17b1gxam4hgy.gz
@@ -29,21 +32,16 @@ After downloading, run `tar -zxf s4lkm5ej7sh4px72vesr17b1gxam4hgy.gz` under the 
 The following scripts gives examples for running the code.
 - Pretraining the network: `scripts/train-stg1.sh`
 - Fine-tuning with joint 2D optimization: `scripts/train-stg2.sh`
-- Evaluating on the test set: `scripts/run-evaluate.sh`
-- Computing the error metrics: `scripts/run-compute-error.sh`
+- Evaluating on the test set: `scripts/evaluate.sh`
+- Computing the error metrics: `scripts/evaluate_dist.sh`
 
 Checkpoints are stored in `models/${EXPERIMENTATION}`, summaries are stored in `runs/_${EXPERIMENTATION}`, and evaluated point clouds are stored in `results_${GROUP}`.
-The list of optional arguments can be found by executing `python3 train-stg1.py --help`. The default training settings in this released code is slightly different from the paper but optimizes the networks better.
-We provide two different network architectures: (1) originally from the paper (2) deeper with residual blocks. Reference performances on the test set is as follows (note that different runs will result in slightly different performances):
-
-|          | pred→GT | GT→pred |
-|:--------:|:-------:|:-------:|
-| original |  1.7342 |  1.8371 |
-|  ResNet  |  1.6723 |  1.8169 |
+The list of optional arguments can be found by executing `python3 train-stg1.py --help`.
 
 --------------------------------------
 
 ## Rendering ground-truth depth images
+(Provided in TF's repo)
 We provide the code to render depth images for supervision.
 
 ### Prerequisites
@@ -63,6 +61,7 @@ The rendered files will be stored in the `output` directory.
 --------------------------------------
 
 ## Creating densified point clouds of CAD models for evaluation
+(Provided in TF's repo)
 We also provide the code to densify the vertices of CAD models to a specified number. This code can be run independently; only the ShapeNet dataset is required.
 It repeats the process of adding a vertex to the center of the longest edge of the triangular mesh and subsequently re-triangulating the mesh. This will create (generally) uniformly densified CAD models.
 <p align="center"><img src="densify/example.png" width=400></p>
